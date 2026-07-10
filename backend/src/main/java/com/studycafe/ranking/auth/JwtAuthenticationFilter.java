@@ -1,5 +1,6 @@
 package com.studycafe.ranking.auth;
 
+import io.jsonwebtoken.JwtException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -39,7 +40,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                         new UsernamePasswordAuthenticationToken(userId, null, List.of());
                 authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                 SecurityContextHolder.getContext().setAuthentication(authentication);
-            } catch (Exception e) {
+            } catch (JwtException | IllegalArgumentException e) {
+                // 유효하지 않은/파싱 불가 토큰 → 인증 없이 통과(보호된 엔드포인트에서 401)
                 SecurityContextHolder.clearContext();
             }
         }

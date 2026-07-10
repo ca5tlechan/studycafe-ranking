@@ -23,6 +23,9 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider tokenProvider;
 
+    /** 로그인 타이밍 사이드채널 방어용 더미 해시(존재하지 않는 아이디에도 동일하게 matches 수행). */
+    private final String dummyPasswordHash;
+
     public AuthService(UserRepository userRepository,
                        SchoolRepository schoolRepository,
                        PasswordEncoder passwordEncoder,
@@ -31,6 +34,7 @@ public class AuthService {
         this.schoolRepository = schoolRepository;
         this.passwordEncoder = passwordEncoder;
         this.tokenProvider = tokenProvider;
+        this.dummyPasswordHash = passwordEncoder.encode("timing-defense-dummy-password");
     }
 
     @Transactional
@@ -52,9 +56,11 @@ public class AuthService {
 
     @Transactional(readOnly = true)
     public LoginResponse login(LoginRequest request) {
-        User user = userRepository.findByLoginId(request.loginId())
-                .orElseThrow(InvalidCredentialsException::new);
-        if (!passwordEncoder.matches(request.password(), user.getPasswordHash())) {
+        // 아이디가 없어도 더미 해시로 matches 를 수행해 응답 시간을 균일화(loginId 열거 방지).
+        User user = userRepository.findByLoginId(request.loginId()).orElse(null);
+        String hashToCheck = (user != null) ? user.getPasswordHash() : dummyPasswordHash;
+        boolean matches = passwordEncoder.matches(request.password(), hashToCheck);
+        if (user == null || !matches) {
             throw new InvalidCredentialsException();
         }
         String token = tokenProvider.createToken(user.getId());

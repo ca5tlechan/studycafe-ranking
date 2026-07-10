@@ -31,9 +31,11 @@ docker compose up -d db
 ### 2) 백엔드 (:8080)
 ```bash
 cd backend
+JWT_SECRET='local-dev-only-min-32-bytes-replace-me' \
 JAVA_HOME=/Library/Java/JavaVirtualMachines/temurin-21.jdk/Contents/Home ./gradlew bootRun
 ```
-> 시스템 기본 JDK가 25라면 위처럼 `JAVA_HOME`을 21로 지정해 실행한다.
+> - 시스템 기본 JDK가 25라면 위처럼 `JAVA_HOME`을 21로 지정해 실행한다.
+> - `JWT_SECRET`은 **필수**(기본값 없음, 최소 32바이트). 미설정 시 기동되지 않는다. 생성 예: `openssl rand -base64 48`.
 
 ### 3) 프론트 (:5173)
 ```bash
@@ -51,8 +53,8 @@ npm run dev
 ## 진행 상황
 
 - [x] **Phase 0** — 프로젝트 셋업 (백엔드/프론트 스캐폴딩, Postgres compose, 빌드 초록불)
-- [ ] Phase 3(선) — 04:00 분할 + 하루/주 캡 순수 로직 + 단위 테스트
-- [ ] Phase 1 — 인증(회원가입/로그인/JWT)
+- [x] **Phase 3(선)** — 04:00 분할 + 하루/주 캡 순수 로직 + 단위 테스트
+- [ ] **Phase 1** — 인증(회원가입/로그인/JWT) — PR #1 진행 중
 - [ ] Phase 2 — 체크인/체크아웃 원본 기록
 - [ ] Phase 3 — 집계 로직 연결(daily_study_records)
 - [ ] Phase 4~ — 통계/랭킹 API, 프론트, 마감·어뷰징 방지 (CLAUDE.md §7)
