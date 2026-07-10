@@ -69,9 +69,9 @@
 - **HTTPS 필수**: 카메라(QR), PWA 설치, Web Push가 보안 컨텍스트에서만 동작. 로컬은 `localhost` 예외 허용.
 
 ### 형상관리
-- **[확정] GitHub 사용.** 단, **private 레포로 시작**.
-- `.gitignore`에 `application.properties`/`application.yml`, `.env` 등 비밀정보 파일을 반드시 포함. DB 접속정보·JWT 시크릿·(Web Push 사용 시)VAPID 키가 커밋에 들어가지 않게 처음부터 세팅.
-- 혼자 하는 프로젝트이므로 브랜치 전략은 단순하게. **커밋 단위를 작게, 메시지를 명확하게.** 단계(Phase)별로 커밋.
+- **[확정] GitHub 사용.** **public(오픈소스) 레포**로 운영한다. (초기엔 private 예정이었으나, CodeRabbit AI 코드리뷰를 무료로 쓰기 위해 public으로 전환. 시크릿을 절대 커밋하지 않으므로 공개해도 안전.)
+- `.gitignore`에 `.env`, `application-local.yml`, `application-secret*.yml` 등 비밀정보 파일을 반드시 포함. DB 접속정보·JWT 시크릿·(Web Push 사용 시)VAPID 키는 환경변수/`.env`로만 주입하고 커밋하지 않는다. (커밋되는 `application.yml`은 `${...}` 플레이스홀더만.)
+- **Phase마다 feature 브랜치 → PR → 머지** 흐름으로 간다(예: `feat/phase-1-auth`). 각 PR은 **CodeRabbit**(`.coderabbit.yaml`)이 보안/구조 중심으로 자동 리뷰한다. **커밋 단위를 작게, 메시지를 명확하게.**
 
 ---
 
@@ -382,7 +382,7 @@ ORDER BY total DESC,
 > 원칙: **각 Phase를 구현·테스트한 뒤 다음으로.** Phase마다 명확한 메시지로 커밋. 백엔드가 사용자의 강점이므로 백엔드 우선, 정확성이 중요한 집계 로직을 앞쪽에 배치.
 
 - **Phase 0 — 프로젝트 셋업**
-  - 백엔드/프론트 레포 분리, GitHub **private** 생성, `.gitignore`로 시크릿(+VAPID) 제외
+  - **모노레포**(`backend/`, `frontend/`) 단일 git 레포, GitHub **public** 생성, `.gitignore`로 시크릿(+VAPID) 제외
   - 로컬 Postgres(또는 Docker) 준비
   - Spring Boot 초기화(Web, JPA, Security, Validation, PostgreSQL)
   - Vite + React + `vite-plugin-pwa` 초기화
