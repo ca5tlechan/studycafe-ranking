@@ -1,0 +1,22 @@
+# ===== 시크릿 (절대 커밋 금지) =====
+.env
+.env.local
+.env.*.local
+**/application-local.yml
+**/application-local.yaml
+**/application-secret*.yml
+**/application-secret*.yaml
+
+# ===== OS =====
+.DS_Store
+
+# ===== IDE =====
+.idea/
+*.iml
+.vscode/
+
+# ===== 빌드 산출물/의존성 (하위 .gitignore가 커버하지만 안전망) =====
+**/build/
+**/.gradle/
+**/node_modules/
+**/dist/

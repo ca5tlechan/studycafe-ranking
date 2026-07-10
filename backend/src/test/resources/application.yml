@@ -1,0 +1,13 @@
+# 테스트 전용 설정 — 테스트 classpath가 main보다 우선하므로 이 파일이 main/application.yml을 덮어씀.
+# Phase 0~초기엔 DB 없이도 컨텍스트가 뜨도록 H2 인메모리 사용.
+# ※ Postgres 전용 SQL(부분 유니크 인덱스, LEAST 등)은 이후 Testcontainers(실 Postgres)로 검증 예정.
+spring:
+  datasource:
+    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;MODE=PostgreSQL
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: ""
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    database-platform: org.hibernate.dialect.H2Dialect
