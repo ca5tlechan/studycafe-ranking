@@ -23,6 +23,7 @@ StudyCafeRanking/
 ## 로컬 실행
 
 ### 1) DB (Postgres)
+> Postgres는 호스트 **5433** 포트로 노출된다(로컬에 5432를 쓰는 Postgres가 있어도 충돌 방지).
 ```bash
 docker compose up -d db
 ```

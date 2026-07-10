@@ -7,7 +7,8 @@ services:
       POSTGRES_USER: studycafe
       POSTGRES_PASSWORD: studycafe
     ports:
-      - "5432:5432"
+      # 호스트 5433 → 컨테이너 5432. 로컬/Homebrew Postgres가 쓰는 5432와 충돌 방지.
+      - "5433:5432"
     volumes:
       - studycafe-pgdata:/var/lib/postgresql/data
     healthcheck:
