@@ -1,0 +1,32 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+# CodeRabbit 설정 — PR마다 자동 AI 코드리뷰. 보안 + 구조 중심.
+language: "ko-KR"
+
+tone_instructions: >
+  한국어로 리뷰한다. (1) 보안 취약점 — 인증/JWT 검증, 비밀번호 해싱, 입력 검증,
+  SQL 인젝션, 시크릿(키·접속정보) 노출, 권한 체크 누락 — 을 최우선으로 지적한다.
+  (2) 구조/아키텍처 문제 — 레이어 분리, 트랜잭션 경계, 도메인 규칙 위반 — 을 그다음으로 본다.
+  CLAUDE.md 의 도메인 규칙(04:00 스터디 날짜 분할, 하루 16h/주 84h 랭킹 캡, 최소 10분 세션
+  필터, 집계 멱등성)을 기준으로 집계·랭킹 로직의 정확성을 특히 꼼꼼히 검증한다.
+
+reviews:
+  profile: "assertive"          # 더 적극적으로(많이) 지적
+  request_changes_workflow: false
+  high_level_summary: true
+  poem: false
+  review_status: true
+  auto_review:
+    enabled: true
+    drafts: false               # Draft PR은 리뷰 안 함
+  path_instructions:
+    - path: "backend/**/*.java"
+      instructions: >
+        Spring Boot / JPA / Security 관점으로 본다. JWT 검증·비밀번호 해싱·권한 체크 누락,
+        N+1 쿼리, 트랜잭션 경계(@Transactional), 입력 검증(@Valid) 여부, 예외 처리,
+        동시성(활성 세션 유니크 제약 등)을 확인한다.
+    - path: "frontend/**/*.{ts,tsx}"
+      instructions: >
+        토큰 저장 방식(XSS 노출 위험), API 에러 처리, 상태관리 일관성, 타입 안전성을 확인한다.
+
+chat:
+  auto_reply: true
