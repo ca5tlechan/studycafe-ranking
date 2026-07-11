@@ -4,6 +4,8 @@ import com.studycafe.ranking.common.exception.DuplicateLoginIdException;
 import com.studycafe.ranking.common.exception.InvalidCredentialsException;
 import com.studycafe.ranking.common.exception.SchoolNotFoundException;
 import com.studycafe.ranking.common.exception.UserNotFoundException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
@@ -26,6 +28,8 @@ import java.util.Map;
  */
 @RestControllerAdvice
 public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
+
+    private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
     @ExceptionHandler(DuplicateLoginIdException.class)
     public ResponseEntity<ApiError> handleDuplicate(DuplicateLoginIdException e) {
@@ -61,6 +65,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     /** 최후의 안전망 — 위에서 매핑되지 않은 예외. 내부 메시지는 노출하지 않는다. */
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiError> handleUnexpected(Exception e) {
+        log.error("Unhandled exception", e);
         return build(HttpStatus.INTERNAL_SERVER_ERROR, "서버 오류가 발생했습니다.");
     }
 

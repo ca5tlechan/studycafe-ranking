@@ -10,7 +10,8 @@ import java.util.Optional;
 
 public interface UserRepository extends JpaRepository<User, Long> {
 
-    Optional<User> findByLoginId(String loginId);
+    @Query("select u from User u left join fetch u.school where u.loginId = :loginId")
+    Optional<User> findByLoginIdWithSchool(@Param("loginId") String loginId);
 
     boolean existsByLoginId(String loginId);
 

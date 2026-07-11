@@ -68,7 +68,7 @@ public class AuthService {
     @Transactional(readOnly = true)
     public LoginResponse login(LoginRequest request) {
         // 아이디가 없어도 더미 해시로 matches 를 수행해 응답 시간을 균일화(loginId 열거 방지).
-        User user = userRepository.findByLoginId(request.loginId()).orElse(null);
+        User user = userRepository.findByLoginIdWithSchool(request.loginId()).orElse(null);
         String hashToCheck = (user != null) ? user.getPasswordHash() : dummyPasswordHash;
         boolean matches = passwordEncoder.matches(request.password(), hashToCheck);
         if (user == null || !matches) {
@@ -94,12 +94,18 @@ public class AuthService {
         return existing + 1;
     }
 
-    /** DataIntegrityViolationException 이 loginId 유니크 제약(uk_users_login_id) 위반인지 판별. */
+    /**
+     * DataIntegrityViolationException 이 loginId 유니크 제약(uk_users_login_id) 위반인지 판별.
+     * 원인 체인에서 Hibernate ConstraintViolationException 을 찾아 제약명으로만 판단한다.
+     * (메시지 문자열 매칭은 NOT NULL/길이 초과 등 다른 위반을 오탐할 수 있어 사용하지 않는다.)
+     */
     private boolean isLoginIdConflict(DataIntegrityViolationException e) {
-        if (e.getCause() instanceof ConstraintViolationException cve && cve.getConstraintName() != null) {
-            return cve.getConstraintName().toLowerCase().contains("uk_users_login_id");
+        for (Throwable t = e; t != null; t = t.getCause()) {
+            if (t instanceof ConstraintViolationException cve) {
+                String name = cve.getConstraintName();
+                return name != null && name.toLowerCase().contains("uk_users_login_id");
+            }
         }
-        Throwable root = e.getMostSpecificCause();
-        return root.getMessage() != null && root.getMessage().toLowerCase().contains("login_id");
+        return false;
     }
 }
