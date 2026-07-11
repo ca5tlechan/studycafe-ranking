@@ -11,6 +11,7 @@ import com.studycafe.ranking.domain.User;
 import com.studycafe.ranking.repository.SchoolRepository;
 import com.studycafe.ranking.repository.UserRepository;
 import com.studycafe.ranking.user.dto.UserResponse;
+import org.hibernate.exception.ConstraintViolationException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -53,10 +54,14 @@ public class AuthService {
                 school
         );
         try {
-            return UserResponse.from(userRepository.save(user));
+            // saveAndFlush: 커밋이 아니라 이 시점에 제약 위반을 즉시 유발해 잡는다.
+            return UserResponse.from(userRepository.saveAndFlush(user));
         } catch (DataIntegrityViolationException e) {
-            // existsByLoginId 이후 동시 가입 레이스로 loginId 유니크 제약 충돌 → 중복 아이디(409)로 변환
-            throw new DuplicateLoginIdException(request.loginId());
+            // existsByLoginId 이후 동시 가입 레이스. loginId 유니크 충돌만 409로 변환하고, 그 외 제약 위반은 전파.
+            if (isLoginIdConflict(e)) {
+                throw new DuplicateLoginIdException(request.loginId(), e);
+            }
+            throw e;
         }
     }
 
@@ -87,5 +92,14 @@ public class AuthService {
                 ? userRepository.countByDisplayNameAndSchoolIsNull(displayName)
                 : userRepository.countByDisplayNameAndSchool(displayName, school);
         return existing + 1;
+    }
+
+    /** DataIntegrityViolationException 이 loginId 유니크 제약(uk_users_login_id) 위반인지 판별. */
+    private boolean isLoginIdConflict(DataIntegrityViolationException e) {
+        if (e.getCause() instanceof ConstraintViolationException cve && cve.getConstraintName() != null) {
+            return cve.getConstraintName().toLowerCase().contains("uk_users_login_id");
+        }
+        Throwable root = e.getMostSpecificCause();
+        return root.getMessage() != null && root.getMessage().toLowerCase().contains("login_id");
     }
 }
