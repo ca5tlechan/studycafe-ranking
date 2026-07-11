@@ -11,6 +11,7 @@ import com.studycafe.ranking.domain.User;
 import com.studycafe.ranking.repository.SchoolRepository;
 import com.studycafe.ranking.repository.UserRepository;
 import com.studycafe.ranking.user.dto.UserResponse;
+import java.util.Locale;
 import org.hibernate.exception.ConstraintViolationException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -103,7 +104,10 @@ public class AuthService {
         for (Throwable t = e; t != null; t = t.getCause()) {
             if (t instanceof ConstraintViolationException cve) {
                 String name = cve.getConstraintName();
-                return name != null && name.toLowerCase().contains("uk_users_login_id");
+                if (name != null && name.toLowerCase(Locale.ROOT).contains("uk_users_login_id")) {
+                    return true;
+                }
+                // 제약명이 없으면 여기서 끝내지 않고 남은 원인 체인을 계속 확인한다.
             }
         }
         return false;
