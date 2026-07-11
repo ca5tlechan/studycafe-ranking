@@ -33,8 +33,14 @@ class ActiveSessionIndexInitializer implements ApplicationRunner {
         if (!postgres) {
             return;
         }
-        jdbcTemplate.execute("CREATE UNIQUE INDEX IF NOT EXISTS ux_active_session_per_user "
+        Integer existing = jdbcTemplate.queryForObject(
+                "select count(*) from pg_indexes where indexname = 'ux_active_session_per_user'", Integer.class);
+        if (existing != null && existing > 0) {
+            return; // 이미 존재 → 매 기동 시 재실행/블로킹 회피
+        }
+        // 비블로킹 생성. CONCURRENTLY 는 트랜잭션 밖에서만 가능한데 ApplicationRunner 는 비트랜잭션(autocommit)이라 OK.
+        jdbcTemplate.execute("CREATE UNIQUE INDEX CONCURRENTLY IF NOT EXISTS ux_active_session_per_user "
                 + "ON check_in_sessions (user_id) WHERE status = 'ACTIVE'");
-        log.info("Ensured partial unique index ux_active_session_per_user (Postgres)");
+        log.info("Created partial unique index ux_active_session_per_user (Postgres, CONCURRENTLY)");
     }
 }

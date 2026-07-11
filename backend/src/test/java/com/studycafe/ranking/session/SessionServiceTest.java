@@ -1,6 +1,7 @@
 package com.studycafe.ranking.session;
 
 import com.studycafe.ranking.common.exception.InvalidCafeTokenException;
+import com.studycafe.ranking.domain.Cafe;
 import com.studycafe.ranking.domain.User;
 import com.studycafe.ranking.repository.CafeRepository;
 import com.studycafe.ranking.repository.UserRepository;
@@ -38,7 +39,8 @@ class SessionServiceTest {
     void setUp() {
         User user = userRepository.save(new User("sess_tester", "{noop}pw", "김세션", 1, null));
         userId = user.getId();
-        cafeToken = cafeRepository.findAll().get(0).getQrToken(); // 시드된 파일럿 카페
+        Cafe cafe = cafeRepository.save(new Cafe("테스트 카페", "TEST-CAFE-TOKEN")); // 시드 순서/존재에 비의존
+        cafeToken = cafe.getQrToken();
     }
 
     @Test

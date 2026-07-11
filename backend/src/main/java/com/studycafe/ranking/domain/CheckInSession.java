@@ -65,12 +65,6 @@ public class CheckInSession {
         this.status = SessionStatus.ACTIVE;
     }
 
-    /** 정상 체크아웃. */
-    public void checkOut(Instant at) {
-        this.checkOutAt = at;
-        this.status = SessionStatus.COMPLETED;
-    }
-
     public Long getId() {
         return id;
     }

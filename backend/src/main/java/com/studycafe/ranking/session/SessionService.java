@@ -46,9 +46,11 @@ public class SessionService {
 
         Optional<CheckInSession> active = sessionRepository.findByUserIdAndStatus(userId, SessionStatus.ACTIVE);
         if (active.isPresent()) {
-            CheckInSession session = active.get();
-            session.checkOut(Instant.now());
-            return SessionToggleResponse.checkedOut(session);
+            Long sessionId = active.get().getId();
+            // 조건부 UPDATE(WHERE status=ACTIVE) — 동시 더블탭 체크아웃도 안전(둘째는 0건 → 멱등).
+            sessionRepository.checkOutIfActive(sessionId, Instant.now());
+            CheckInSession closed = sessionRepository.findById(sessionId).orElseThrow();
+            return SessionToggleResponse.checkedOut(closed);
         }
 
         User user = userRepository.getReferenceById(userId);
@@ -58,7 +60,7 @@ public class SessionService {
         } catch (DataIntegrityViolationException e) {
             // 동시 더블탭으로 활성 세션 부분 유니크 인덱스 충돌만 409로. 그 외 제약 위반은 전파.
             if (isActiveSessionConflict(e)) {
-                throw new AlreadyCheckedInException();
+                throw new AlreadyCheckedInException(e);
             }
             throw e;
         }
@@ -72,7 +74,8 @@ public class SessionService {
                 .orElseGet(CurrentSessionResponse::none);
     }
 
-    private boolean isActiveSessionConflict(DataIntegrityViolationException e) {
+    // 패키지-프라이빗: 실 Postgres 통합 테스트에서 직접 검증하기 위함.
+    boolean isActiveSessionConflict(DataIntegrityViolationException e) {
         for (Throwable t = e; t != null; t = t.getCause()) {
             if (t instanceof ConstraintViolationException cve) {
                 String name = cve.getConstraintName();
