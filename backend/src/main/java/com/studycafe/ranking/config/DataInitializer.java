@@ -1,6 +1,8 @@
 package com.studycafe.ranking.config;
 
+import com.studycafe.ranking.domain.Cafe;
 import com.studycafe.ranking.domain.School;
+import com.studycafe.ranking.repository.CafeRepository;
 import com.studycafe.ranking.repository.SchoolRepository;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
@@ -8,20 +10,30 @@ import org.springframework.stereotype.Component;
 import java.util.List;
 
 /**
- * 파일럿용 학교 목록 시드. 테이블이 비어 있을 때만 삽입한다.
- * (운영 시 운영자가 실제 주변/자주 오는 학교로 교체 — §3.7. 무소속은 school_id=null 이라 시드 대상 아님.)
+ * 파일럿용 시드 데이터(학교 목록 + 카페 1행). 각 테이블이 비어 있을 때만 삽입한다.
+ * (운영 시 운영자가 실제 값으로 교체 — §3.7. 무소속은 school_id=null 이라 시드 대상 아님.)
  */
 @Component
 class DataInitializer implements CommandLineRunner {
 
-    private final SchoolRepository schoolRepository;
+    /** 파일럿 카페 QR 토큰. 실제 QR에 인코딩되는 값과 일치시킨다. */
+    private static final String PILOT_CAFE_QR_TOKEN = "STUDYCAFE-PILOT-001";
 
-    DataInitializer(SchoolRepository schoolRepository) {
+    private final SchoolRepository schoolRepository;
+    private final CafeRepository cafeRepository;
+
+    DataInitializer(SchoolRepository schoolRepository, CafeRepository cafeRepository) {
         this.schoolRepository = schoolRepository;
+        this.cafeRepository = cafeRepository;
     }
 
     @Override
     public void run(String... args) {
+        seedSchools();
+        seedCafe();
+    }
+
+    private void seedSchools() {
         if (schoolRepository.count() > 0) {
             return;
         }
@@ -35,5 +47,12 @@ class DataInitializer implements CommandLineRunner {
                 new School("중앙대학교", "중대"),
                 new School("경희대학교", "경희대")
         ));
+    }
+
+    private void seedCafe() {
+        if (cafeRepository.count() > 0) {
+            return;
+        }
+        cafeRepository.save(new Cafe("스터디카페 파일럿점", PILOT_CAFE_QR_TOKEN));
     }
 }
