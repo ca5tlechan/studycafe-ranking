@@ -11,6 +11,7 @@ import com.studycafe.ranking.domain.User;
 import com.studycafe.ranking.repository.SchoolRepository;
 import com.studycafe.ranking.repository.UserRepository;
 import com.studycafe.ranking.user.dto.UserResponse;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -51,7 +52,12 @@ public class AuthService {
                 nameSeq,
                 school
         );
-        return UserResponse.from(userRepository.save(user));
+        try {
+            return UserResponse.from(userRepository.save(user));
+        } catch (DataIntegrityViolationException e) {
+            // existsByLoginId 이후 동시 가입 레이스로 loginId 유니크 제약 충돌 → 중복 아이디(409)로 변환
+            throw new DuplicateLoginIdException(request.loginId());
+        }
     }
 
     @Transactional(readOnly = true)

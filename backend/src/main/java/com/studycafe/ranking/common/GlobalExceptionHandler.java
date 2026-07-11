@@ -7,6 +7,7 @@ import com.studycafe.ranking.common.exception.UserNotFoundException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
+import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -61,6 +62,24 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiError> handleUnexpected(Exception e) {
         return build(HttpStatus.INTERNAL_SERVER_ERROR, "서버 오류가 발생했습니다.");
+    }
+
+    /**
+     * ResponseEntityExceptionHandler 가 처리하는 표준 MVC 예외(잘못된 JSON, 405 등)는 기본적으로
+     * ProblemDetail 로 응답되는데, 이를 ApiError 로 변환해 응답 스키마를 하나로 통일한다.
+     */
+    @Override
+    protected ResponseEntity<Object> handleExceptionInternal(
+            Exception ex, Object body, HttpHeaders headers, HttpStatusCode statusCode, WebRequest request) {
+        if (body instanceof ApiError) {
+            return super.handleExceptionInternal(ex, body, headers, statusCode, request);
+        }
+        HttpStatus status = HttpStatus.valueOf(statusCode.value());
+        String message = (body instanceof ProblemDetail pd && pd.getDetail() != null)
+                ? pd.getDetail()
+                : status.getReasonPhrase();
+        ApiError apiError = ApiError.of(status.value(), status.getReasonPhrase(), message);
+        return super.handleExceptionInternal(ex, apiError, headers, statusCode, request);
     }
 
     private ResponseEntity<ApiError> build(HttpStatus status, String message) {

@@ -23,26 +23,32 @@ StudyCafeRanking/
 ## 로컬 실행
 
 ### 1) DB (Postgres)
+
 > Postgres는 호스트 **5433** 포트로 노출된다(로컬에 5432를 쓰는 Postgres가 있어도 충돌 방지).
+
 ```bash
 docker compose up -d db
 ```
 
 ### 2) 백엔드 (:8080)
+
 ```bash
 cd backend
 JWT_SECRET='local-dev-only-min-32-bytes-replace-me' \
 JAVA_HOME=/Library/Java/JavaVirtualMachines/temurin-21.jdk/Contents/Home ./gradlew bootRun
 ```
+
 > - 시스템 기본 JDK가 25라면 위처럼 `JAVA_HOME`을 21로 지정해 실행한다.
 > - `JWT_SECRET`은 **필수**(기본값 없음, 최소 32바이트). 미설정 시 기동되지 않는다. 생성 예: `openssl rand -base64 48`.
 
 ### 3) 프론트 (:5173)
+
 ```bash
 cd frontend
 npm install   # 최초 1회
 npm run dev
 ```
+
 개발 중 프론트의 `/api` 요청은 `vite.config.ts` 프록시로 백엔드(:8080)에 전달된다.
 
 ## 시크릿 관리
