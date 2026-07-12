@@ -7,8 +7,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -16,7 +16,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-/** 마이페이지 통계 HTTP 계약: 인증/정상/파라미터 검증. */
+/** 마이페이지 통계 HTTP 계약: 인증(4개 엔드포인트)/정상/파라미터 검증. */
 @SpringBootTest
 @AutoConfigureMockMvc
 @Transactional
@@ -38,10 +38,13 @@ class MeStatsControllerMockMvcTest {
     }
 
     @Test
-    @DisplayName("무토큰 → 401")
-    void overview_requiresAuth() throws Exception {
-        mockMvc.perform(get("/api/me/stats/overview"))
+    @DisplayName("무토큰 → 401 (overview/calendar/weekday/hourly 전부)")
+    void allEndpoints_requireAuth() throws Exception {
+        mockMvc.perform(get("/api/me/stats/overview")).andExpect(status().isUnauthorized());
+        mockMvc.perform(get("/api/me/stats/calendar").param("year", "2026").param("month", "7"))
                 .andExpect(status().isUnauthorized());
+        mockMvc.perform(get("/api/me/stats/weekday-pattern")).andExpect(status().isUnauthorized());
+        mockMvc.perform(get("/api/me/stats/hourly-pattern")).andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -54,13 +57,15 @@ class MeStatsControllerMockMvcTest {
     }
 
     @Test
-    @DisplayName("calendar 잘못된 month(13) → 400")
-    void calendar_invalidMonth_returns400() throws Exception {
+    @DisplayName("calendar 잘못된 month(13) → 400, ApiError 형식")
+    void calendar_invalidMonth_returns400ApiError() throws Exception {
         mockMvc.perform(get("/api/me/stats/calendar")
                         .header("Authorization", bearer)
                         .param("year", "2026")
                         .param("month", "13"))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.error").value("Bad Request"));
     }
 
     @Test

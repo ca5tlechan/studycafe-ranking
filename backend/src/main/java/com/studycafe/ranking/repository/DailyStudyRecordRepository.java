@@ -24,5 +24,9 @@ public interface DailyStudyRecordRepository extends JpaRepository<DailyStudyReco
 
     List<DailyStudyRecord> findByUserIdAndStudyDateBetween(Long userId, LocalDate start, LocalDate end);
 
+    /**
+     * 요일별 "누적 평균"(§5.1) 계산용 — 전체 기간이 스펙 의미라 기간 제한을 두지 않는다.
+     * daily_study_records 는 유저·스터디날짜당 1행이라 실질적으로 작다(하루 1행).
+     */
     List<DailyStudyRecord> findByUserId(Long userId);
 }

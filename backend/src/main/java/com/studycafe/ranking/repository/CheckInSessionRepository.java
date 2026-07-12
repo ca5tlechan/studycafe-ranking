@@ -39,7 +39,12 @@ public interface CheckInSessionRepository extends JpaRepository<CheckInSession, 
                                                @Param("windowStart") Instant windowStart,
                                                @Param("windowEnd") Instant windowEnd);
 
-    /** 유저의 모든 닫힌 세션 — 시간대별(24h) 히스토그램 온디맨드 계산용(§5.1). */
+    /**
+     * 유저의 모든 닫힌 세션 — 시간대별(24h) 히스토그램 온디맨드 계산용(§5.1).
+     * 히스토그램은 "전체 기간 누적"이 스펙 의미(§4)라 기간 제한을 두지 않는다.
+     * §4·§5.1대로 파일럿 규모(수십 명)에선 온디맨드로 충분하며, 장기 스케일이 필요해지면
+     * hourly_study_pattern 사전 집계 테이블(체크아웃 시 누적)로 전환한다.
+     */
     @Query("select s from CheckInSession s where s.user.id = :userId and s.checkOutAt is not null")
     List<CheckInSession> findClosedByUserId(@Param("userId") Long userId);
 }
