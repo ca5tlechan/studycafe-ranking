@@ -32,4 +32,16 @@ public final class StudyClock {
         ZonedDateTime boundary = k.isBefore(todayStart) ? todayStart : todayStart.plusDays(1);
         return boundary.toInstant();
     }
+
+    /** 스터디 날짜 D 의 시작 시각 = D 04:00(KST). */
+    public static Instant startOf(LocalDate studyDate) {
+        return studyDate.atStartOfDay(StudyTimePolicy.ZONE)
+                .plusHours(StudyTimePolicy.DAY_START_HOUR)
+                .toInstant();
+    }
+
+    /** 스터디 날짜 D 의 끝(배타) = (D+1) 04:00(KST). */
+    public static Instant endOf(LocalDate studyDate) {
+        return startOf(studyDate.plusDays(1));
+    }
 }
