@@ -29,4 +29,11 @@ public interface DailyStudyRecordRepository extends JpaRepository<DailyStudyReco
      * daily_study_records 는 유저·스터디날짜당 1행이라 실질적으로 작다(하루 1행).
      */
     List<DailyStudyRecord> findByUserId(Long userId);
+
+    /**
+     * 기간 내 (userId, 하루 total_seconds) 행들 — 랭킹용. 캡(하루16h/주84h)은 서비스에서 적용(§3.6e).
+     * 엔티티를 로딩하지 않는 프로젝션(N+1 회피). row[0]=userId(Long), row[1]=totalSeconds(Long).
+     */
+    @Query("select d.user.id, d.totalSeconds from DailyStudyRecord d where d.studyDate between :start and :end")
+    List<Object[]> findUserSecondsInPeriod(@Param("start") LocalDate start, @Param("end") LocalDate end);
 }
