@@ -24,7 +24,9 @@ import java.time.Instant;
 @Table(name = "check_in_sessions",
         indexes = {
                 @Index(name = "ix_sessions_user_status", columnList = "user_id,status"),
-                @Index(name = "ix_sessions_check_out_at", columnList = "check_out_at")
+                @Index(name = "ix_sessions_check_out_at", columnList = "check_out_at"),
+                // findClosedOverlapping(핫 패스) 지원: user_id 필터 + check_out_at 구간
+                @Index(name = "ix_sessions_user_checkout", columnList = "user_id,check_out_at")
         })
 public class CheckInSession {
 
@@ -73,6 +75,9 @@ public class CheckInSession {
     public void close(Instant at) {
         if (this.status != SessionStatus.ACTIVE) {
             throw new IllegalStateException("활성 상태가 아닌 세션은 종료할 수 없습니다: " + this.status);
+        }
+        if (at.isBefore(this.checkInAt)) {
+            throw new IllegalArgumentException("체크아웃 시각이 체크인 시각보다 이릅니다.");
         }
         this.checkOutAt = at;
         this.status = SessionStatus.COMPLETED;

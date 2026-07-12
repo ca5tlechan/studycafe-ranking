@@ -14,8 +14,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.time.LocalDate;
-import java.util.List;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -66,6 +66,10 @@ public class StudyRecordService {
             return;
         }
 
+        // 조회 후 없으면 생성(check-then-act). 동일 (userId, studyDate) 동시 재계산은 Phase 3에선 발생하지 않는다:
+        // 유저당 ACTIVE 세션 1개 + checkOutIfActive 조건부 UPDATE(행 잠금)로 한 유저의 체크아웃(=재계산 트리거)이 직렬화되기 때문.
+        // (Phase 10 배치가 유저 체크아웃과 동시에 같은 날짜를 재계산하게 되면, 그 시점에 격리 트랜잭션 재시도로 방어한다.
+        //  DB 네이티브 upsert는 H2가 ON CONFLICT 를 지원하지 않아 크로스-DB로 쓰기 어렵다.)
         DailyStudyRecord record = recordRepository.findByUserIdAndStudyDate(userId, studyDate)
                 .orElseGet(() -> new DailyStudyRecord(userRepository.getReferenceById(userId), studyDate));
         record.setTotalSeconds(total);
