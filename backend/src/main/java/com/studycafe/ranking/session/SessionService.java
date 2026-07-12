@@ -11,6 +11,7 @@ import com.studycafe.ranking.repository.CheckInSessionRepository;
 import com.studycafe.ranking.repository.UserRepository;
 import com.studycafe.ranking.session.dto.CurrentSessionResponse;
 import com.studycafe.ranking.session.dto.SessionToggleResponse;
+import com.studycafe.ranking.studyrecord.StudyRecordService;
 import java.util.Locale;
 import java.util.Optional;
 import org.hibernate.exception.ConstraintViolationException;
@@ -30,13 +31,16 @@ public class SessionService {
     private final CafeRepository cafeRepository;
     private final CheckInSessionRepository sessionRepository;
     private final UserRepository userRepository;
+    private final StudyRecordService studyRecordService;
 
     public SessionService(CafeRepository cafeRepository,
                           CheckInSessionRepository sessionRepository,
-                          UserRepository userRepository) {
+                          UserRepository userRepository,
+                          StudyRecordService studyRecordService) {
         this.cafeRepository = cafeRepository;
         this.sessionRepository = sessionRepository;
         this.userRepository = userRepository;
+        this.studyRecordService = studyRecordService;
     }
 
     @Transactional
@@ -50,6 +54,8 @@ public class SessionService {
             // 조건부 UPDATE(WHERE status=ACTIVE) — 동시 더블탭 체크아웃도 안전(둘째는 0건 → 멱등).
             sessionRepository.checkOutIfActive(sessionId, Instant.now());
             CheckInSession closed = sessionRepository.findById(sessionId).orElseThrow();
+            // 닫힌 세션이 걸친 스터디 날짜 집계를 원본에서 재계산(§3.1 멱등).
+            studyRecordService.recompute(userId, closed.getCheckInAt(), closed.getCheckOutAt());
             return SessionToggleResponse.checkedOut(closed);
         }
 

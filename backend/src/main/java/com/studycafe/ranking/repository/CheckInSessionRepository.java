@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 
 public interface CheckInSessionRepository extends JpaRepository<CheckInSession, Long> {
@@ -30,4 +31,11 @@ public interface CheckInSessionRepository extends JpaRepository<CheckInSession, 
     @Query("select s from CheckInSession s join fetch s.cafe where s.user.id = :userId and s.status = :status")
     Optional<CheckInSession> findByUserIdAndStatusWithCafe(@Param("userId") Long userId,
                                                            @Param("status") SessionStatus status);
+
+    /** 유저의 '닫힌'(check_out_at != null) 세션 중 [windowStart, windowEnd) 구간과 겹치는 것 — 스터디 날짜 재계산용(§3.1). */
+    @Query("select s from CheckInSession s where s.user.id = :userId and s.checkOutAt is not null "
+            + "and s.checkInAt < :windowEnd and s.checkOutAt > :windowStart")
+    List<CheckInSession> findClosedOverlapping(@Param("userId") Long userId,
+                                               @Param("windowStart") Instant windowStart,
+                                               @Param("windowEnd") Instant windowEnd);
 }

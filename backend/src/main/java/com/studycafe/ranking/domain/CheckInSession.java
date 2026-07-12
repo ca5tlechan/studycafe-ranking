@@ -65,6 +65,19 @@ public class CheckInSession {
         this.status = SessionStatus.ACTIVE;
     }
 
+    /**
+     * 세션을 정상 종료(체크아웃). ACTIVE 상태에서만 허용(도메인 불변식).
+     * 대화형 체크아웃의 동시성은 SessionService의 조건부 UPDATE가 담당하고,
+     * 이 메서드는 단일 스레드 컨텍스트(스케줄 배치 Phase 10 · 테스트)에서 사용한다.
+     */
+    public void close(Instant at) {
+        if (this.status != SessionStatus.ACTIVE) {
+            throw new IllegalStateException("활성 상태가 아닌 세션은 종료할 수 없습니다: " + this.status);
+        }
+        this.checkOutAt = at;
+        this.status = SessionStatus.COMPLETED;
+    }
+
     public Long getId() {
         return id;
     }
