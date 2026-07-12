@@ -38,4 +38,8 @@ public interface CheckInSessionRepository extends JpaRepository<CheckInSession, 
     List<CheckInSession> findClosedOverlapping(@Param("userId") Long userId,
                                                @Param("windowStart") Instant windowStart,
                                                @Param("windowEnd") Instant windowEnd);
+
+    /** 유저의 모든 닫힌 세션 — 시간대별(24h) 히스토그램 온디맨드 계산용(§5.1). */
+    @Query("select s from CheckInSession s where s.user.id = :userId and s.checkOutAt is not null")
+    List<CheckInSession> findClosedByUserId(@Param("userId") Long userId);
 }
