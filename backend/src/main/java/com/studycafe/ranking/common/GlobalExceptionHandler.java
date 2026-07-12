@@ -1,6 +1,8 @@
 package com.studycafe.ranking.common;
 
+import com.studycafe.ranking.common.exception.AlreadyCheckedInException;
 import com.studycafe.ranking.common.exception.DuplicateLoginIdException;
+import com.studycafe.ranking.common.exception.InvalidCafeTokenException;
 import com.studycafe.ranking.common.exception.InvalidCredentialsException;
 import com.studycafe.ranking.common.exception.SchoolNotFoundException;
 import com.studycafe.ranking.common.exception.UserNotFoundException;
@@ -41,9 +43,14 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return build(HttpStatus.UNAUTHORIZED, e.getMessage());
     }
 
-    @ExceptionHandler({SchoolNotFoundException.class, UserNotFoundException.class})
+    @ExceptionHandler({SchoolNotFoundException.class, UserNotFoundException.class, InvalidCafeTokenException.class})
     public ResponseEntity<ApiError> handleNotFound(RuntimeException e) {
         return build(HttpStatus.NOT_FOUND, e.getMessage());
+    }
+
+    @ExceptionHandler(AlreadyCheckedInException.class)
+    public ResponseEntity<ApiError> handleAlreadyCheckedIn(AlreadyCheckedInException e) {
+        return build(HttpStatus.CONFLICT, e.getMessage());
     }
 
     /** 검증 실패(@Valid) — Spring 기본 응답 대신 ApiError(fieldErrors)로. */
