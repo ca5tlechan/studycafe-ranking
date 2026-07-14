@@ -28,9 +28,14 @@ public final class NameMasker {
     public static String rankingLabel(User user) {
         String masked = maskName(user.getDisplayName());
         School school = user.getSchool();
-        String schoolPart = (school != null)
-                ? (school.getShortName() != null ? school.getShortName() : school.getName())
-                : "무소속";
+        String schoolPart;
+        if (school == null) {
+            schoolPart = "무소속";
+        } else {
+            String shortName = school.getShortName();
+            // short_name 이 null 또는 공백이면 name 으로 폴백(빈 괄호 `()` 방지).
+            schoolPart = (shortName != null && !shortName.isBlank()) ? shortName : school.getName();
+        }
         String suffix = user.getNameSeq() > 1 ? String.valueOf(user.getNameSeq()) : "";
         return masked + "(" + schoolPart + ")" + suffix;
     }

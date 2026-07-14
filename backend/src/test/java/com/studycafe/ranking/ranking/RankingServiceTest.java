@@ -21,8 +21,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.DayOfWeek;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.temporal.TemporalAdjusters;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -154,5 +156,40 @@ class RankingServiceTest {
         assertEquals("에이대학교", r.schoolName());
         assertEquals(1, r.ranking().podium().size()); // 무소속 other 제외, 나만
         assertTrue(r.ranking().podium().get(0).isMe());
+    }
+
+    @Test
+    @DisplayName("개인: 11명 → 포디움 3 + 리스트 4~10위(7)만, 11위는 내 순위로만 표시")
+    void individual_podiumAndListSlicing() {
+        User me = null;
+        for (int i = 0; i < 11; i++) {
+            User u = user("u" + i, "김민현", 1, schoolA);
+            record(u, (11 - i) * H); // u0=11h(1위) ... u10=1h(11위)
+            if (i == 10) {
+                me = u;
+            }
+        }
+        IndividualRankingResponse r = rankingService.individual(me.getId(), RankingPeriod.THIS_YEAR);
+
+        assertEquals(3, r.podium().size());
+        assertEquals(7, r.list().size());       // 4~10위
+        assertEquals(4, r.list().get(0).rank());
+        assertEquals(10, r.list().get(6).rank());
+        assertEquals(11, r.myRank().rank());    // top10 밖이어도 내 순위 표시
+        assertTrue(r.myRank().isMe());
+    }
+
+    @Test
+    @DisplayName("개인 주간: 하루16h×6일=96h → 주 84h 캡")
+    void individual_weeklyCap() {
+        User a = user("a", "김민현", 1, schoolA);
+        LocalDate weekMonday = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
+        for (int i = 0; i < 6; i++) { // 월~토, 모두 이번 주
+            DailyStudyRecord rec = new DailyStudyRecord(a, weekMonday.plusDays(i));
+            rec.setTotalSeconds(16 * H); // 하루 캡 상한
+            recordRepository.save(rec);
+        }
+        IndividualRankingResponse r = rankingService.individual(a.getId(), RankingPeriod.THIS_WEEK);
+        assertEquals(84 * H, r.podium().get(0).seconds()); // 96h → 주 84h 캡
     }
 }
