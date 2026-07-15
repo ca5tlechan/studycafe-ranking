@@ -39,6 +39,11 @@ public interface CheckInSessionRepository extends JpaRepository<CheckInSession, 
                                                @Param("windowStart") Instant windowStart,
                                                @Param("windowEnd") Instant windowEnd);
 
+    /** 기간 내 유저별 마지막 체크아웃 시각 — 개인 랭킹 동점 tie-break(§3.5). row[0]=userId, row[1]=Instant. */
+    @Query("select s.user.id, max(s.checkOutAt) from CheckInSession s "
+            + "where s.checkOutAt >= :start and s.checkOutAt < :end group by s.user.id")
+    List<Object[]> lastCheckoutByUser(@Param("start") Instant start, @Param("end") Instant end);
+
     /**
      * 유저의 모든 닫힌 세션 — 시간대별(24h) 히스토그램 온디맨드 계산용(§5.1).
      * 히스토그램은 "전체 기간 누적"이 스펙 의미(§4)라 기간 제한을 두지 않는다.

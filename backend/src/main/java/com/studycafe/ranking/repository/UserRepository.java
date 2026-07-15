@@ -6,6 +6,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 
 public interface UserRepository extends JpaRepository<User, Long> {
@@ -22,4 +24,8 @@ public interface UserRepository extends JpaRepository<User, Long> {
     /** school 까지 fetch join (open-in-view=false 환경에서 지연로딩 예외 방지). */
     @Query("select u from User u left join fetch u.school where u.id = :id")
     Optional<User> findByIdWithSchool(@Param("id") Long id);
+
+    /** 랭킹 표시용 — 여러 유저를 학교까지 fetch join(N+1 회피). */
+    @Query("select u from User u left join fetch u.school where u.id in :ids")
+    List<User> findAllByIdInWithSchool(@Param("ids") Collection<Long> ids);
 }
