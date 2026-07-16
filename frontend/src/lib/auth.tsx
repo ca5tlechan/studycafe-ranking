@@ -69,6 +69,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUnauthorizedHandler(() => {
       invalidateBootstrap();
       setUser(null);
+      // 만료는 '확정된' 상태다. 이전 검증이 남긴 연결 오류를 지우지 않으면
+      // 토큰이 정리됐는데도 화면이 로그인 대신 '연결 문제'에 머문다.
+      setLoadError(false);
       setReady(true);
     });
     return () => setUnauthorizedHandler(null);
