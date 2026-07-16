@@ -79,7 +79,9 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   });
   // 토큰을 실어 보낸 요청이 401/403이면 세션 만료로 간주하고 인증 상태를 정리한다.
   // (로그인 실패의 401은 토큰 없이 보낸 요청이라 여기 해당하지 않는다.)
-  if (token && (res.status === 401 || res.status === 403)) {
+  // 응답이 늦게 오는 사이 다른 토큰으로 로그인했을 수 있으므로, 보낸 토큰이 아직 그대로일 때만 정리한다.
+  // 그러지 않으면 만료 토큰의 뒤늦은 401이 방금 발급받은 세션을 지운다.
+  if (token && (res.status === 401 || res.status === 403) && getToken() === token) {
     setToken(null);
     unauthorizedHandler?.();
   }

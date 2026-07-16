@@ -1,4 +1,6 @@
-import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
+import {
+  createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode,
+} from 'react';
 import {
   ApiError, authApi, getToken, setToken, setUnauthorizedHandler,
   type SignupInput, type User,
@@ -22,7 +24,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(false);
   const [loadError, setLoadError] = useState(false);
 
+  // 진행 중인 부트스트랩의 세대 번호. 로그인/로그아웃/만료로 인증 상태가 확정되면
+  // 번호를 올려, 늦게 도착한 검증 결과가 확정된 상태를 덮어쓰지 못하게 한다.
+  const bootstrapSeq = useRef(0);
+  const invalidateBootstrap = useCallback(() => {
+    bootstrapSeq.current += 1;
+  }, []);
+
   const bootstrap = useCallback(async () => {
+    const seq = bootstrapSeq.current + 1;
+    bootstrapSeq.current = seq;
+    const stale = () => bootstrapSeq.current !== seq;
+
     if (!getToken()) {
       setUser(null);
       setLoadError(false);
@@ -32,16 +45,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setReady(false);
     setLoadError(false);
     try {
-      setUser(await authApi.me());
+      const me = await authApi.me();
+      if (stale()) return;
+      setUser(me);
     } catch (err) {
+      if (stale()) return;
       if (err instanceof ApiError && (err.status === 401 || err.status === 403)) {
-        setToken(null); // 만료/무효 토큰만 정리 → 로그인 화면으로
-        setUser(null);
+        setUser(null); // 만료/무효 토큰 정리는 api 계층이 이미 했다 → 로그인 화면으로
       } else {
         setLoadError(true); // 네트워크/5xx 는 토큰 유지하고 재시도 가능하게
       }
     } finally {
-      setReady(true);
+      if (!stale()) setReady(true);
     }
   }, []);
 
@@ -51,15 +66,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // 인증 만료를 한 곳에서: api 계층이 401/403에서 토큰을 지우고, 여기서 사용자 상태를 비운다.
   useEffect(() => {
-    setUnauthorizedHandler(() => setUser(null));
+    setUnauthorizedHandler(() => {
+      invalidateBootstrap();
+      setUser(null);
+      setReady(true);
+    });
     return () => setUnauthorizedHandler(null);
-  }, []);
+  }, [invalidateBootstrap]);
 
   const login = async (loginId: string, password: string) => {
     const res = await authApi.login(loginId, password);
+    invalidateBootstrap(); // 진행 중이던 이전 토큰 검증이 새 세션을 덮어쓰지 않도록
     setToken(res.token);
     setUser(res.user);
     setLoadError(false);
+    setReady(true);
   };
 
   const signup = async (input: SignupInput) => {
@@ -72,9 +93,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = () => {
+    invalidateBootstrap();
     setToken(null);
     setUser(null);
     setLoadError(false);
+    setReady(true);
   };
 
   return (
