@@ -1,6 +1,7 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../lib/auth';
+import { AutoLoginFailedError } from '../lib/authErrors';
 import { ApiError, authApi, type School } from '../lib/api';
 
 const Logo = (
@@ -11,21 +12,33 @@ export default function SignupPage() {
   const { signup } = useAuth();
   const navigate = useNavigate();
   const [schools, setSchools] = useState<School[]>([]);
+  const [schoolsFailed, setSchoolsFailed] = useState(false);
   const [loginId, setLoginId] = useState('');
   const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [schoolId, setSchoolId] = useState(''); // '' = 무소속
   const [error, setError] = useState('');
+  const [notice, setNotice] = useState(''); // 가입 성공 + 자동 로그인만 실패
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
 
-  useEffect(() => {
-    authApi.schools().then(setSchools).catch(() => { /* 선택 목록 없이도 무소속 가입 가능 */ });
+  const loadSchools = useCallback(async () => {
+    setSchoolsFailed(false);
+    try {
+      setSchools(await authApi.schools());
+    } catch {
+      setSchoolsFailed(true); // 조용히 삼키지 않고 알린다 (무소속 가입은 계속 가능)
+    }
   }, []);
+
+  useEffect(() => {
+    void loadSchools();
+  }, [loadSchools]);
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     setError('');
+    setNotice('');
     setFieldErrors({});
     setBusy(true);
     try {
@@ -37,7 +50,9 @@ export default function SignupPage() {
       });
       navigate('/', { replace: true });
     } catch (err) {
-      if (err instanceof ApiError) {
+      if (err instanceof AutoLoginFailedError) {
+        setNotice(err.message); // 계정은 만들어졌으니 재가입이 아니라 로그인으로 안내
+      } else if (err instanceof ApiError) {
         setFieldErrors(err.body?.fieldErrors ?? {});
         setError(err.body?.fieldErrors ? '입력값을 확인해 주세요.' : err.message);
       } else {
@@ -47,6 +62,8 @@ export default function SignupPage() {
       setBusy(false);
     }
   };
+
+  const done = Boolean(notice); // 가입 완료됨 → 다시 제출하면 중복 오류
 
   return (
     <div className="auth">
@@ -59,6 +76,7 @@ export default function SignupPage() {
 
       <form onSubmit={submit} noValidate>
         {error && <div className="banner" role="alert">{error}</div>}
+        {notice && <div className="banner info" role="status">{notice}</div>}
 
         <div className="field">
           <label htmlFor="loginId">아이디</label>
@@ -85,20 +103,31 @@ export default function SignupPage() {
 
         <div className="field">
           <label htmlFor="school">학교</label>
-          <select id="school" className="select" value={schoolId} onChange={(e) => setSchoolId(e.target.value)}>
+          <select id="school" className="select" value={schoolId} onChange={(e) => setSchoolId(e.target.value)}
+            disabled={schoolsFailed}>
             <option value="">무소속</option>
             {schools.map((s) => (
               <option key={s.id} value={s.id}>{s.name}</option>
             ))}
           </select>
-          <span className="hint-txt">목록에 없으면 무소속을 선택하세요. 학교 랭킹에만 영향을 줘요.</span>
+          {schoolsFailed ? (
+            <span className="err-txt">
+              학교 목록을 불러오지 못했어요. 무소속으로는 가입할 수 있어요.{' '}
+              <button type="button" className="link-btn" onClick={() => void loadSchools()}>다시 시도</button>
+            </span>
+          ) : (
+            <span className="hint-txt">목록에 없으면 무소속을 선택하세요. 학교 랭킹에만 영향을 줘요.</span>
+          )}
         </div>
 
         <div className="actions">
-          <button className="btn full" disabled={busy || !loginId || !password || !displayName}>
+          <button className="btn full" disabled={busy || done || !loginId || !password || !displayName}>
             {busy ? '가입 중…' : '회원가입'}
           </button>
-          <p className="switch">이미 계정이 있나요? <Link to="/login">로그인</Link></p>
+          <p className="switch">
+            {done ? '가입이 끝났어요. ' : '이미 계정이 있나요? '}
+            <Link to="/login">로그인</Link>
+          </p>
         </div>
       </form>
     </div>

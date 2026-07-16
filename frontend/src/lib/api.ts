@@ -49,6 +49,14 @@ export const setToken = (token: string | null): void => {
   else localStorage.removeItem(TOKEN_KEY);
 };
 
+type UnauthorizedHandler = () => void;
+let unauthorizedHandler: UnauthorizedHandler | null = null;
+
+/** 인증 만료(401/403)를 앱 전역에서 한 번에 처리하기 위한 훅. AuthProvider 가 등록한다. */
+export const setUnauthorizedHandler = (handler: UnauthorizedHandler | null): void => {
+  unauthorizedHandler = handler;
+};
+
 export class ApiError extends Error {
   status: number;
   body: ApiErrorBody | null;
@@ -69,6 +77,12 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
       ...options.headers,
     },
   });
+  // 토큰을 실어 보낸 요청이 401/403이면 세션 만료로 간주하고 인증 상태를 정리한다.
+  // (로그인 실패의 401은 토큰 없이 보낸 요청이라 여기 해당하지 않는다.)
+  if (token && (res.status === 401 || res.status === 403)) {
+    setToken(null);
+    unauthorizedHandler?.();
+  }
   const text = await res.text();
   const body = text ? JSON.parse(text) : null;
   if (!res.ok) throw new ApiError(res.status, body);

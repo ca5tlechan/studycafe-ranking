@@ -4,6 +4,7 @@
   --ink:#182338; --ink-2:#3e4a60; --muted:#6f7788; --faint:#a0a7b4;
   --line:#e3e5ea; --line-2:#eef0f3;
   --primary:#1c4fa2; --primary-ink:#153c7d; --primary-soft:#e6eefa;
+  --on-primary:#ffffff; /* --primary 배경 위 전경색 (대비 8:1) */
   --gold:#e0a219; --gold-ink:#95680d; --gold-soft:#f8ebc7;
   --active:#1f9d63; --danger:#c8402f;
   --shadow:0 1px 2px rgba(16,28,54,.05), 0 8px 24px -12px rgba(16,28,54,.2);
@@ -16,6 +17,7 @@
     --ink:#e9edf4; --ink-2:#bfc8d6; --muted:#8b98ac; --faint:#586377;
     --line:#25324a; --line-2:#1e2940;
     --primary:#5a90e6; --primary-ink:#83abef; --primary-soft:#1b2b49;
+    --on-primary:#0d1422; /* 밝은 파랑 위엔 흰색(3.2:1)이 부족 → 어두운 전경색(5.7:1) */
     --gold:#efbd4b; --gold-ink:#f3c968; --gold-soft:#2e2611;
     --active:#37b87c; --danger:#f0705f;
     --shadow:0 1px 2px rgba(0,0,0,.34), 0 14px 32px -14px rgba(0,0,0,.6);
@@ -78,7 +80,7 @@ button { font: inherit; cursor: pointer; }
 .btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 8px;
   padding: 14px 18px; border-radius: var(--radius-sm); font-size: 15.5px; font-weight: 670;
-  border: none; background: var(--primary); color: #fff; transition: filter .12s, opacity .12s;
+  border: none; background: var(--primary); color: var(--on-primary); transition: filter .12s, opacity .12s;
 }
 .btn svg { width: 18px; height: 18px; }
 .btn.full { width: 100%; }
@@ -107,7 +109,7 @@ button { font: inherit; cursor: pointer; }
 .auth { display: flex; flex-direction: column; min-height: 100dvh; padding: 40px 26px 32px; justify-content: center; }
 .auth .brand { display: flex; align-items: center; gap: 11px; margin-bottom: 8px; }
 .auth .brand .logo {
-  width: 40px; height: 40px; border-radius: 12px; background: var(--primary); color: #fff;
+  width: 40px; height: 40px; border-radius: 12px; background: var(--primary); color: var(--on-primary);
   display: grid; place-items: center;
 }
 .auth .brand .logo svg { width: 22px; height: 22px; }
@@ -123,12 +125,17 @@ button { font: inherit; cursor: pointer; }
   padding: 12px 14px; border-radius: 12px; background: color-mix(in srgb, var(--danger) 12%, transparent);
   color: var(--danger); margin-bottom: 18px;
 }
+.banner.info { background: var(--primary-soft); color: var(--primary-ink); }
+.link-btn {
+  background: none; border: none; padding: 0; font-size: inherit; font-weight: 700;
+  color: var(--primary-ink); text-decoration: underline;
+}
 
 /* ===== 상태/공용 ===== */
 .pill { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; padding: 5px 11px; border-radius: 999px; }
 .pill.studying { background: var(--gold-soft); color: var(--gold-ink); }
 .pill.idle { background: var(--surface-2); color: var(--muted); }
-.dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+.dot { width: 7px; height: 7px; border-radius: 50%; background: currentcolor; }
 .dot.live { animation: pulse 2.4s ease-in-out infinite; }
 @keyframes pulse { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: .45; transform: scale(.8); } }
 .center-msg { text-align: center; color: var(--muted); padding: 48px 20px; font-size: 14px; }
