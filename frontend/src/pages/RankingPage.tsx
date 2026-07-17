@@ -9,11 +9,9 @@ import {
   type SchoolRanking,
 } from '../lib/api';
 import { fmtHM } from '../lib/format';
+import { PODIUM_ORDER } from '../lib/ranking';
 
 type Tab = 'individual' | 'school';
-
-/** 포디움 표시 순서: 2·1·3 (가운데가 1등). */
-const PODIUM_ORDER = [2, 1, 3];
 
 function SchoolPodium({ entries }: { entries: SchoolEntry[] }) {
   const byRank = new Map(entries.map((e) => [e.rank, e]));
@@ -87,7 +85,8 @@ export default function RankingPage() {
         if (mine !== seq.current) return;
         setSchool(data);
       }
-    } catch {
+    } catch (e) {
+      console.error('랭킹 로드 실패', e); // 실패 원인 추적용
       if (mine === seq.current) setFailed(true);
     } finally {
       if (mine === seq.current) setLoading(false);

@@ -20,7 +20,8 @@ export default function SchoolPage() {
       const res = await rankingApi.schoolMine(p);
       if (mine !== seq.current) return; // 기간을 연달아 바꾸면 늦게 온 응답이 최신 것을 덮는다
       setData(res);
-    } catch {
+    } catch (e) {
+      console.error('우리 학교 랭킹 로드 실패', e); // 실패 원인 추적용
       if (mine === seq.current) setFailed(true);
     } finally {
       if (mine === seq.current) setLoading(false);
@@ -31,8 +32,10 @@ export default function SchoolPage() {
     void load(period);
   }, [load, period]);
 
-  // 무소속이면 ranking 이 없으므로 기간과의 대조는 랭킹이 있을 때만 의미가 있다.
-  const fresh = data ? !data.available || data.ranking?.period === period : false;
+  // 응답이 지금 기간의 것인지. 무소속(available=false)이거나 랭킹이 아예 없으면(ranking=null)
+  // 기간 대조는 의미가 없으니 fresh 로 본다. 이 방어가 없으면 ranking=null 일 때 period 불일치가
+  // 되어 loading=false 인데도 '불러오는 중'에 영구히 갇힌다.
+  const fresh = data ? !data.available || !data.ranking || data.ranking.period === period : false;
 
   return (
     <>
@@ -58,8 +61,11 @@ export default function SchoolPage() {
           ) : !data?.available ? (
             // §5.3 — 무소속 안내
             <p className="chart-empty">학교를 설정하면 우리 학교 랭킹을 볼 수 있어요.</p>
+          ) : data.ranking ? (
+            <RankingBoard data={data.ranking} />
           ) : (
-            data.ranking && <RankingBoard data={data.ranking} />
+            // 소속은 있으나 랭킹 데이터가 없는 경우(방어) — 무한 로딩 대신 빈 상태를 보여준다.
+            <p className="chart-empty">이 기간에는 아직 기록이 없어요.</p>
           )}
         </section>
       </div>

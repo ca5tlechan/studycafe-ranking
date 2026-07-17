@@ -1,8 +1,6 @@
 import type { IndividualRanking, RankEntry } from '../lib/api';
 import { fmtHM } from '../lib/format';
-
-/** 포디움 표시 순서: 2·1·3 (가운데가 1등). 참여자가 3명 미만이면 있는 만큼만. */
-const PODIUM_ORDER = [2, 1, 3];
+import { PODIUM_ORDER } from '../lib/ranking';
 
 function Podium({ entries }: { entries: RankEntry[] }) {
   const byRank = new Map(entries.map((e) => [e.rank, e]));
