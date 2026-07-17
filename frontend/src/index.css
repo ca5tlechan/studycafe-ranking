@@ -155,6 +155,47 @@ button { font: inherit; cursor: pointer; }
   font-size: 12.5px; line-height: 1.6;
 }
 
+/* ===== 마이페이지 ===== */
+.now-line { display: flex; align-items: center; gap: 10px; font-size: 13.5px; color: var(--ink-2); }
+.stat-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.stat { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 16px; }
+.stat-v { font-size: 21px; font-weight: 730; letter-spacing: -.02em; margin-top: 6px; }
+.stat-row + .card, .now-line + .stat-row { margin-top: 12px; }
+
+.cal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.cal-head b { font-size: 15px; }
+.cal-nav {
+  width: 32px; height: 32px; border: none; border-radius: 9px;
+  background: var(--surface-2); color: var(--ink-2); font-size: 17px; line-height: 1;
+}
+.cal-nav:disabled { opacity: .35; cursor: default; }
+/* minmax(0,…) 가 없으면 칸이 "4시간 12분"의 최소 너비 아래로 못 줄어 그리드가 화면을 넘친다 */
+.cal-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 3px; }
+.cal-dow { text-align: center; font-size: 10.5px; font-weight: 700; color: var(--faint); padding-bottom: 4px; }
+.cal-cell {
+  min-height: 54px; border-radius: 8px; padding: 4px 2px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  background: var(--surface-2);
+}
+.cal-cell.empty { background: transparent; }
+/* 기록이 있는 날만 색으로 구분한다 — 빈 날까지 칠하면 어디가 채워졌는지 안 보인다 */
+.cal-cell.has { background: var(--primary-soft); }
+.cal-cell.today { outline: 1.5px solid var(--primary); outline-offset: -1.5px; }
+.cal-d { font-size: 11px; font-weight: 640; color: var(--muted); }
+.cal-cell.has .cal-d { color: var(--primary-ink); }
+/* 좁은 칸에서 "10시간 30분"은 두 줄로 접는다. 단어 중간에서 끊기지 않게 keep-all. */
+.cal-t {
+  font-size: 9px; font-weight: 700; color: var(--primary-ink);
+  text-align: center; line-height: 1.2; word-break: keep-all;
+}
+
+.chart-sub { font-size: 12.5px; color: var(--muted); margin: 6px 0 10px; }
+.chart-empty { font-size: 13px; color: var(--faint); padding: 28px 0; text-align: center; }
+.chart-tip {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
+  padding: 7px 10px; font-size: 12px; color: var(--ink-2); box-shadow: var(--shadow);
+}
+
 /* ===== 상태/공용 ===== */
 .pill { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; padding: 5px 11px; border-radius: 999px; }
 .pill.studying { background: var(--gold-soft); color: var(--gold-ink); }

@@ -1,4 +1,4 @@
-import { StrictMode } from 'react';
+import { StrictMode, Suspense, type ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { createBrowserRouter, Navigate, RouterProvider } from 'react-router-dom';
 import './index.css';
@@ -8,10 +8,21 @@ import AppLayout from './components/AppLayout';
 import LoginPage from './pages/LoginPage';
 import SignupPage from './pages/SignupPage';
 import HomePage from './pages/HomePage';
-import CheckInPage from './pages/CheckInPage';
-import MyPage from './pages/MyPage';
 import RankingPage from './pages/RankingPage';
 import SchoolPage from './pages/SchoolPage';
+import { CheckInPage, MyPage } from './pages/lazy';
+
+const lazyRoute = (node: ReactNode) => (
+  <Suspense
+    fallback={
+      <div className="loading-screen">
+        <div className="spinner" aria-label="불러오는 중" />
+      </div>
+    }
+  >
+    {node}
+  </Suspense>
+);
 
 const router = createBrowserRouter([
   { path: '/login', element: <LoginPage /> },
@@ -24,8 +35,8 @@ const router = createBrowserRouter([
     ),
     children: [
       { path: '/', element: <HomePage /> },
-      { path: '/checkin', element: <CheckInPage /> },
-      { path: '/my', element: <MyPage /> },
+      { path: '/checkin', element: lazyRoute(<CheckInPage />) },
+      { path: '/my', element: lazyRoute(<MyPage />) },
       { path: '/ranking', element: <RankingPage /> },
       { path: '/school', element: <SchoolPage /> },
     ],
