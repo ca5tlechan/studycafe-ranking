@@ -17,6 +17,10 @@ public interface CheckInSessionRepository extends JpaRepository<CheckInSession, 
     Optional<CheckInSession> findByUserIdAndStatus(@Param("userId") Long userId,
                                                    @Param("status") SessionStatus status);
 
+    /** 04:00 자동 마감 배치용 — 아직 열려 있는 세션 전부. user 를 fetch 해 소유자 경고 적립에 쓴다. */
+    @Query("select s from CheckInSession s join fetch s.user where s.status = :status")
+    List<CheckInSession> findAllByStatus(@Param("status") SessionStatus status);
+
     /**
      * ACTIVE 세션을 원자적으로 체크아웃(WHERE status=ACTIVE). 동시 더블탭 체크아웃 시 둘째는 0건 → 멱등.
      * clearAutomatically: 벌크 update 후 영속성 컨텍스트를 비워 재조회가 최신값을 읽게 한다.

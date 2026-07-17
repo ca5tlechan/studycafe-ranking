@@ -13,6 +13,10 @@ export interface User {
   nameSeq: number;
   schoolId: number | null;
   schoolName: string | null;
+  /** 이번 스터디-월의 04:00 자동 마감 경고 수(§3.6c). */
+  warningCount: number;
+  /** 경고 임계 도달 → 이번 기간 랭킹 제외. */
+  penalized: boolean;
 }
 
 export interface LoginResponse {

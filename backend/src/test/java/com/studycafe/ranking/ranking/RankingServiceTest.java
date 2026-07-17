@@ -180,6 +180,41 @@ class RankingServiceTest {
     }
 
     @Test
+    @DisplayName("페널티(경고 3회) 유저는 개인 랭킹에서 제외된다(§3.6c)")
+    void penalizedUserExcludedFromIndividual() {
+        User clean = user("clean", "김정상", 1, schoolA);
+        User bad = user("bad", "박페널", 1, schoolA);
+        record(clean, 5 * H);
+        record(bad, 20 * H); // 기록만 보면 1위여야 하지만 페널티로 제외
+
+        int ym = StudyClock.studyMonthYm(Instant.now());
+        for (int i = 0; i < com.studycafe.ranking.studytime.StudyTimePolicy.PENALTY_THRESHOLD; i++) {
+            bad.addWarning(ym);
+        }
+        userRepository.saveAndFlush(bad);
+
+        IndividualRankingResponse r = rankingService.individual(clean.getId(), RankingPeriod.THIS_YEAR);
+        // bad(20h)가 빠지고 clean(요청자)만 1위로 남는다
+        assertEquals(1, r.podium().size());
+        assertEquals(1, r.podium().get(0).rank());
+        assertTrue(r.podium().get(0).isMe());
+    }
+
+    @Test
+    @DisplayName("경고가 임계 미만이면 랭킹에 그대로 포함된다")
+    void underThresholdStillRanked() {
+        User a = user("a1", "김포함", 1, schoolA);
+        record(a, 10 * H);
+        int ym = StudyClock.studyMonthYm(Instant.now());
+        a.addWarning(ym); // 1회 — 임계(3) 미만
+        userRepository.saveAndFlush(a);
+
+        IndividualRankingResponse r = rankingService.individual(a.getId(), RankingPeriod.THIS_YEAR);
+        assertEquals(1, r.podium().size());
+        assertTrue(r.myRank().isMe());
+    }
+
+    @Test
     @DisplayName("개인 주간: 하루16h×6일=96h → 주 84h 캡")
     void individual_weeklyCap() {
         User a = user("a", "김민현", 1, schoolA);

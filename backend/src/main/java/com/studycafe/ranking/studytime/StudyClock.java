@@ -44,4 +44,14 @@ public final class StudyClock {
     public static Instant endOf(LocalDate studyDate) {
         return startOf(studyDate.plusDays(1));
     }
+
+    /** 시각 T 가 속한 스터디-월 (yyyymm, 예: 202607). 경고 리셋 판정용(§3.6c). */
+    public static int studyMonthYm(Instant t) {
+        return monthYm(studyDateOf(t));
+    }
+
+    /** 스터디 날짜 D 의 월 (yyyymm). 이미 스터디 날짜를 들고 있을 때 Instant 왕복 없이 쓴다. */
+    public static int monthYm(LocalDate studyDate) {
+        return studyDate.getYear() * 100 + studyDate.getMonthValue();
+    }
 }
