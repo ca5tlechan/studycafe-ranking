@@ -3,7 +3,8 @@
   --ground:#f1f2f4; --surface:#ffffff; --surface-2:#f3f4f7;
   /* --muted 는 본문급 안내 문구에 쓰므로 surface(#fff)·surface-2(#f3f4f7) 양쪽에서 AA 4.5:1 이상
      이어야 한다 (각각 5.20:1, 4.72:1). */
-  --ink:#182338; --ink-2:#3e4a60; --muted:#656d7e; --faint:#a0a7b4;
+  /* 본문급 보조 텍스트는 --muted 까지만 쓴다. 더 흐린 단계는 대비(4.5:1)를 못 맞춘다. */
+  --ink:#182338; --ink-2:#3e4a60; --muted:#656d7e;
   --line:#e3e5ea; --line-2:#eef0f3;
   --primary:#1c4fa2; --primary-ink:#153c7d; --primary-soft:#e6eefa;
   --on-primary:#ffffff; /* --primary 배경 위 전경색 (대비 8:1) */
@@ -17,7 +18,7 @@
 @media (prefers-color-scheme: dark) {
   :root {
     --ground:#0d1422; --surface:#151d2e; --surface-2:#1c2740;
-    --ink:#e9edf4; --ink-2:#bfc8d6; --muted:#8b98ac; --faint:#586377;
+    --ink:#e9edf4; --ink-2:#bfc8d6; --muted:#8b98ac;
     --line:#25324a; --line-2:#1e2940;
     --primary:#5a90e6; --primary-ink:#83abef; --primary-soft:#1b2b49;
     --on-primary:#0d1422; /* 밝은 파랑 위엔 흰색(3.2:1)이 부족 → 어두운 전경색(5.7:1) */
@@ -58,7 +59,6 @@ button { font: inherit; cursor: pointer; }
 }
 .topbar h1 { font-size: 22px; font-weight: 700; letter-spacing: -.02em; }
 .topbar .hi { font-size: 12.5px; color: var(--muted); }
-.topbar .sub { font-size: 12px; color: var(--faint); font-weight: 600; }
 
 /* ===== 하단 탭 ===== */
 .bottom-nav {
@@ -68,7 +68,7 @@ button { font: inherit; cursor: pointer; }
 }
 .bottom-nav a {
   flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px;
-  font-size: 10.5px; font-weight: 600; color: var(--faint);
+  font-size: 10.5px; font-weight: 600; color: var(--muted);
 }
 .bottom-nav a svg { width: 22px; height: 22px; }
 .bottom-nav a.active { color: var(--primary-ink); }
@@ -102,7 +102,7 @@ button { font: inherit; cursor: pointer; }
   border: 1.5px solid var(--line); background: var(--surface); color: var(--ink);
   transition: border-color .12s;
 }
-.input::placeholder { color: var(--faint); }
+.input::placeholder { color: var(--muted); }
 .input:focus, .select:focus { outline: none; border-color: var(--primary); }
 .input.err, .select.err { border-color: var(--danger); }
 .hint-txt { font-size: 11.5px; color: var(--muted); }
@@ -160,7 +160,8 @@ button { font: inherit; cursor: pointer; }
 .stat-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .stat { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 16px; }
 .stat-v { font-size: 21px; font-weight: 730; letter-spacing: -.02em; margin-top: 6px; }
-.stat-row + .card, .now-line + .stat-row { margin-top: 12px; }
+/* 앞 카드가 무엇이든(현재 상태든 그 자리의 오류 안내든) 요약 위 여백은 같아야 한다 */
+.stat-row + .card, .card + .stat-row { margin-top: 12px; }
 
 .cal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
 .cal-head b { font-size: 15px; }
@@ -171,7 +172,10 @@ button { font: inherit; cursor: pointer; }
 .cal-nav:disabled { opacity: .35; cursor: default; }
 /* minmax(0,…) 가 없으면 칸이 "4시간 12분"의 최소 너비 아래로 못 줄어 그리드가 화면을 넘친다 */
 .cal-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 3px; }
-.cal-dow { text-align: center; font-size: 10.5px; font-weight: 700; color: var(--faint); padding-bottom: 4px; }
+/* 이 달 응답을 기다리는 중 — '기록 없는 달'로 오해하지 않게 */
+.cal-grid.loading { opacity: .45; }
+/* 읽어야 하는 글자다. --faint 는 본문 대비(4.5:1)에 못 미친다(라이트 2.42:1) */
+.cal-dow { text-align: center; font-size: 10.5px; font-weight: 700; color: var(--muted); padding-bottom: 4px; }
 .cal-cell {
   min-height: 54px; border-radius: 8px; padding: 4px 2px;
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
@@ -190,7 +194,7 @@ button { font: inherit; cursor: pointer; }
 }
 
 .chart-sub { font-size: 12.5px; color: var(--muted); margin: 6px 0 10px; }
-.chart-empty { font-size: 13px; color: var(--faint); padding: 28px 0; text-align: center; }
+.chart-empty { font-size: 13px; color: var(--muted); padding: 28px 0; text-align: center; }
 .chart-tip {
   background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
   padding: 7px 10px; font-size: 12px; color: var(--ink-2); box-shadow: var(--shadow);
@@ -207,5 +211,5 @@ button { font: inherit; cursor: pointer; }
 .spinner { width: 22px; height: 22px; border: 2.5px solid var(--line); border-top-color: var(--primary); border-radius: 50%; animation: spin .7s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 .loading-screen { min-height: 100dvh; display: grid; place-items: center; }
-.soon { color: var(--faint); font-size: 13px; margin-top: 6px; }
+.soon { color: var(--muted); font-size: 13px; margin-top: 6px; }
 @media (prefers-reduced-motion: reduce) { .dot.live, .spinner { animation: none; } }

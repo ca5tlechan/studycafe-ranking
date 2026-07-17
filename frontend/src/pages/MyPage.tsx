@@ -34,6 +34,20 @@ interface ChartDatum {
   seconds: number;
 }
 
+/** 서로 독립적으로 실패할 수 있는 영역. 하나가 죽어도 나머지는 보여준다. */
+const SECTIONS = ['session', 'overview', 'weekday', 'hourly'] as const;
+type Section = (typeof SECTIONS)[number];
+
+/** 영역 단위 실패 안내 — 실패를 '기록 없음'처럼 보이게 두지 않는다. */
+function SectionError({ onRetry }: { onRetry: () => void }) {
+  return (
+    <p className="chart-sub" role="alert">
+      불러오지 못했어요.{' '}
+      <button type="button" className="link-btn" onClick={onRetry}>다시 시도</button>
+    </p>
+  );
+}
+
 /** 값은 축 대신 툴팁·최댓값 라벨로 읽는다(모바일 폭에서 축 눈금이 겹친다). */
 function ChartTooltip({ active, payload, label, unit }: {
   active?: boolean;
@@ -109,31 +123,34 @@ export default function MyPage() {
   const [weekday, setWeekday] = useState<StatsWeekdayPattern | null>(null);
   const [hourly, setHourly] = useState<StatsHourlyPattern | null>(null);
   const [loading, setLoading] = useState(true);
-  const [failed, setFailed] = useState(false);
+  const [failedSections, setFailedSections] = useState<Set<Section>>(new Set());
   const [calFailed, setCalFailed] = useState(false);
   const calSeq = useRef(0);
+  const loadedOnceRef = useRef(false);
 
-  /** 달과 무관한 데이터 — 한 번만 받는다. */
+  /**
+   * 달과 무관한 데이터 — 한 번만 받는다. 서로 독립적인 조회이므로 병렬로 보내되,
+   * Promise.all 은 쓰지 않는다. 하나만 실패해도 나머지 성공 결과까지 버려져
+   * 멀쩡한 요약·기록이 화면에서 사라진다.
+   */
   const loadStatic = useCallback(async () => {
-    setLoading(true);
-    setFailed(false);
-    try {
-      // 서로 독립적인 조회다 — 순차로 기다릴 이유가 없다.
-      const [s, o, w, h] = await Promise.all([
-        sessionApi.current(),
-        statsApi.overview(),
-        statsApi.weekdayPattern(),
-        statsApi.hourlyPattern(),
-      ]);
-      setSession(s);
-      setOverview(o);
-      setWeekday(w);
-      setHourly(h);
-    } catch {
-      setFailed(true); // 실패를 '기록 없음'으로 숨기지 않는다
-    } finally {
-      setLoading(false);
-    }
+    // 전체 로딩 화면은 첫 진입에서만. 섹션 '다시 시도'로 이걸 켜면 멀쩡히 보이던
+    // 요약·캘린더·차트가 통째로 사라졌다가 돌아온다.
+    if (!loadedOnceRef.current) setLoading(true);
+    const [s, o, w, h] = await Promise.allSettled([
+      sessionApi.current(),
+      statsApi.overview(),
+      statsApi.weekdayPattern(),
+      statsApi.hourlyPattern(),
+    ]);
+    const failed = new Set<Section>();
+    if (s.status === 'fulfilled') setSession(s.value); else failed.add('session');
+    if (o.status === 'fulfilled') setOverview(o.value); else failed.add('overview');
+    if (w.status === 'fulfilled') setWeekday(w.value); else failed.add('weekday');
+    if (h.status === 'fulfilled') setHourly(h.value); else failed.add('hourly');
+    setFailedSections(failed);
+    loadedOnceRef.current = true;
+    setLoading(false);
   }, []);
 
   /**
@@ -151,6 +168,7 @@ export default function MyPage() {
     } catch {
       if (seq === calSeq.current) setCalFailed(true);
     }
+    // 로딩 여부는 calReady(응답한 달 == 보고 있는 달)로 파생된다 — 따로 상태를 두면 어긋날 수 있다.
   }, []);
 
   useEffect(() => {
@@ -161,9 +179,14 @@ export default function MyPage() {
     void loadCalendar(cursor.year, cursor.month);
   }, [loadCalendar, cursor]);
 
+  /**
+   * 응답한 달이 지금 보고 있는 달과 같을 때만 값을 쓴다. 아니면 이전 달 데이터를 들고
+   * 새 달 칸을 그리게 되어, 응답이 오기 전까지 한 달 전체가 '기록 없음'으로 보인다.
+   */
+  const calReady = Boolean(calendar && calendar.year === cursor.year && calendar.month === cursor.month);
   const secondsByDate = useMemo(
-    () => new Map((calendar?.days ?? []).map((d) => [d.date, d.totalSeconds])),
-    [calendar],
+    () => (calReady ? new Map((calendar?.days ?? []).map((d) => [d.date, d.totalSeconds])) : new Map<string, number>()),
+    [calReady, calendar],
   );
 
   const weekdayData = useMemo<ChartDatum[]>(
@@ -190,6 +213,8 @@ export default function MyPage() {
     return [...blanks, ...days];
   }, [cursor]);
 
+  // 전부 실패했을 때만 페이지 전체를 오류로 본다(섹션이 늘어도 자동으로 따라간다)
+  const allFailed = SECTIONS.every((s) => failedSections.has(s));
   const isCurrentMonth = cursor.year === todayY && cursor.month === todayM;
   const shift = (delta: number) => {
     const d = new Date(cursor.year, cursor.month - 1 + delta, 1);
@@ -208,14 +233,19 @@ export default function MyPage() {
       <div className="app-body">
         {loading ? (
           <div className="center-msg">불러오는 중…</div>
-        ) : failed ? (
+        ) : allFailed ? (
+          // 전부 실패 = 서버/연결 문제. 이때만 페이지 전체를 오류로 덮는다.
           <div className="card stack">
             <div className="state-line">기록을 불러오지 못했어요.</div>
             <button className="btn" onClick={() => void loadStatic()}>다시 시도</button>
           </div>
         ) : (
           <>
-            {session?.active && (
+            {failedSections.has('session') ? (
+              <div className="card sub">
+                <SectionError onRetry={() => void loadStatic()} />
+              </div>
+            ) : session?.active ? (
               <div className="card sub now-line">
                 <span className="pill studying"><span className="dot live" />공부 중</span>
                 <span>
@@ -223,19 +253,26 @@ export default function MyPage() {
                   {session.checkInAt && <><span className="num">{fmtTime(session.checkInAt)}</span>부터</>}
                 </span>
               </div>
-            )}
+            ) : null}
 
             {/* 숫자 두 개는 차트보다 그냥 크게 보여주는 게 낫다. 실제 시간 그대로(§5.1 — 랭킹 캡 미적용). */}
-            <div className="stat-row">
-              <div className="stat">
-                <div className="lbl">이번 주</div>
-                <div className="stat-v num">{fmtHM(overview?.weekSeconds ?? 0)}</div>
+            {failedSections.has('overview') ? (
+              <div className="card">
+                <div className="lbl">이번 주 · 이번 달</div>
+                <SectionError onRetry={() => void loadStatic()} />
               </div>
-              <div className="stat">
-                <div className="lbl">이번 달</div>
-                <div className="stat-v num">{fmtHM(overview?.monthSeconds ?? 0)}</div>
+            ) : (
+              <div className="stat-row">
+                <div className="stat">
+                  <div className="lbl">이번 주</div>
+                  <div className="stat-v num">{fmtHM(overview?.weekSeconds ?? 0)}</div>
+                </div>
+                <div className="stat">
+                  <div className="lbl">이번 달</div>
+                  <div className="stat-v num">{fmtHM(overview?.monthSeconds ?? 0)}</div>
+                </div>
               </div>
-            </div>
+            )}
 
             <section className="card">
               <div className="cal-head">
@@ -262,7 +299,9 @@ export default function MyPage() {
                   </button>
                 </p>
               )}
-              <div className="cal-grid">
+              {/* 아직 이 달 응답이 오기 전엔 시간이 비어 있다. 흐리게 해서
+                  '기록 없는 달'과 '아직 모르는 달'을 구분한다. */}
+              <div className={`cal-grid${!calReady && !calFailed ? ' loading' : ''}`}>
                 {['월', '화', '수', '목', '금', '토', '일'].map((d) => (
                   <div key={d} className="cal-dow">{d}</div>
                 ))}
@@ -282,25 +321,37 @@ export default function MyPage() {
 
             <section className="card">
               <div className="lbl">요일별 평균</div>
-              {/* '이번 주'가 아니라 누적 평균이다(§5.1) — 오해하지 않도록 한 줄로 밝힌다. */}
-              <p className="chart-sub">
-                {topWeekday
-                  ? <>그동안 <b>{topWeekday.label}요일</b>에 가장 많이 공부했어요.</>
-                  : '기록이 쌓이면 요일별 패턴이 보여요.'}
-              </p>
-              <StudyBarChart data={weekdayData} unit="요일" height={170} />
+              {failedSections.has('weekday') ? (
+                <SectionError onRetry={() => void loadStatic()} />
+              ) : (
+                <>
+                  {/* '이번 주'가 아니라 누적 평균이다(§5.1) — 오해하지 않도록 한 줄로 밝힌다. */}
+                  <p className="chart-sub">
+                    {topWeekday
+                      ? <>그동안 <b>{topWeekday.label}요일</b>에 가장 많이 공부했어요.</>
+                      : '기록이 쌓이면 요일별 패턴이 보여요.'}
+                  </p>
+                  <StudyBarChart data={weekdayData} unit="요일" height={170} />
+                </>
+              )}
             </section>
 
             <section className="card">
               <div className="lbl">시간대별 공부량</div>
-              <p className="chart-sub">하루 중 언제 공부하는지 — 벽시계 기준이에요.</p>
-              <StudyBarChart
-                data={hourlyData}
-                unit="시"
-                height={170}
-                // 24개를 다 찍으면 눈금이 겹친다 — 6시간 간격만 표시(값은 툴팁으로 읽는다).
-                tickFormatter={(h) => (Number(h) % 6 === 0 ? h : '')}
-              />
+              {failedSections.has('hourly') ? (
+                <SectionError onRetry={() => void loadStatic()} />
+              ) : (
+                <>
+                  <p className="chart-sub">하루 중 언제 공부하는지 — 벽시계 기준이에요.</p>
+                  <StudyBarChart
+                    data={hourlyData}
+                    unit="시"
+                    height={170}
+                    // 24개를 다 찍으면 눈금이 겹친다 — 6시간 간격만 표시.
+                    tickFormatter={(h) => (Number(h) % 6 === 0 ? h : '')}
+                  />
+                </>
+              )}
             </section>
           </>
         )}
