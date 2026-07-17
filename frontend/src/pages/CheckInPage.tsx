@@ -236,6 +236,8 @@ export default function CheckInPage() {
           체크아웃 없이 04:00을 넘기면 자동 종료되고 경고가 쌓여요.
         </p>
 
+        {/* §2 [예외] 개발 빌드 한정 수동 입력 — 프로덕션 빌드에서는 이 분기가 통째로 제거된다.
+            프로덕션에서 토글을 발생시키는 경로는 카메라 QR 스캔뿐이어야 한다. */}
         {import.meta.env.DEV && !result && (
           <div className="card sub stack">
             <span className="lbl">개발용 수동 입력</span>
