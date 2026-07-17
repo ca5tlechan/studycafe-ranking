@@ -28,6 +28,15 @@ export interface CurrentSession {
   cafeName: string | null;
 }
 
+/** 토글 결과. 카페 QR 한 장으로 체크인/체크아웃이 전환된다. */
+export interface SessionToggle {
+  action: 'CHECK_IN' | 'CHECK_OUT';
+  sessionId: number;
+  status: string;
+  checkInAt: string;
+  checkOutAt: string | null;
+}
+
 export interface SignupInput {
   loginId: string;
   password: string;
@@ -105,4 +114,9 @@ export const authApi = {
 
 export const sessionApi = {
   current: () => request<CurrentSession>('/sessions/current'),
+  toggle: (cafeToken: string) =>
+    request<SessionToggle>('/sessions/toggle', {
+      method: 'POST',
+      body: JSON.stringify({ cafeToken }),
+    }),
 };
