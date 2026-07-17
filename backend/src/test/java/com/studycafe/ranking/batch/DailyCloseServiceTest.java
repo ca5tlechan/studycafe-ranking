@@ -54,6 +54,11 @@ class DailyCloseServiceTest {
         return LocalDateTime.of(2026, 7, day, hour, min).atZone(KST).toInstant();
     }
 
+    /** 월 경계 테스트용 — 7월 고정인 kst() 와 달리 월을 직접 지정한다. */
+    private static Instant kst(int month, int day, int hour, int min) {
+        return LocalDateTime.of(2026, month, day, hour, min).atZone(KST).toInstant();
+    }
+
     private User newUser(String loginId) {
         return userRepository.save(new User(loginId, "{noop}pw", "김배치", 1, null));
     }
@@ -82,6 +87,46 @@ class DailyCloseServiceTest {
         // 스스로 체크아웃하지 않았으므로 경고 1회
         assertEquals(1, userRepository.findById(u.getId()).orElseThrow()
                 .effectiveWarnings(StudyClock.studyMonthYm(kst(9, 4, 0))));
+    }
+
+    @Test
+    @DisplayName("월 경계를 넘는 세션은 배치 실행 시각의 달이 아니라 체크인 날짜의 스터디-월에 경고가 쌓인다")
+    void warningAttributedToSessionStudyMonthAcrossMonthBoundary() {
+        User u = newUser("batch_month");
+        // 7월 31일 22:00 체크인 → 세션의 스터디 날짜는 7월 31일(22:00-4h=18:00 → 7/31)
+        activeSession(u, kst(7, 31, 22, 0));
+
+        // 8월 1일 04:00 배치 실행 — 이 시각 기준 스터디월(202608)로 잘못 적립되면 안 된다
+        int closed = dailyCloseService.closeOverdue(kst(8, 1, 4, 0));
+
+        assertEquals(1, closed);
+        User after = userRepository.findById(u.getId()).orElseThrow();
+        assertEquals(1, after.effectiveWarnings(202607)); // 세션 기준(7월)에 적립돼야 정상
+        assertEquals(0, after.effectiveWarnings(202608)); // 배치 실행 시각(8월) 기준이면 버그
+    }
+
+    @Test
+    @DisplayName("스스로 체크아웃한 세션은 배치가 덮어쓰지 않는다(조건부 UPDATE 가 0건일 때 나머지 로직을 건너뜀)")
+    void doesNotOverwriteAlreadyCheckedOutSession() {
+        // 진짜 동시 경쟁(배치의 조회 직후·종료 직전 그 찰나)은 하나의 @Transactional 블록 내부라
+        // 테스트에서 끼어들 수 없다 — 그건 별도 프로브로 재현해 확인했다(예외 없이 조용히 덮어써짐).
+        // 여기서 검증하는 것은 그 방어책의 핵심: autoCloseIfActive 가 0건을 반환하면 배치가
+        // 재계산·경고 적립을 하지 않고 그 세션에 아예 손대지 않는다는 것.
+        User u = newUser("batch_race");
+        CheckInSession s = activeSession(u, kst(8, 20, 0));
+
+        Instant userCheckOut = kst(8, 23, 0);
+        int updated = sessionRepository.checkOutIfActive(s.getId(), userCheckOut);
+        assertEquals(1, updated);
+
+        int closed = dailyCloseService.closeOverdue(kst(9, 4, 0));
+
+        assertEquals(0, closed); // findAllByStatus(ACTIVE) 에 이미 안 잡힘
+        CheckInSession after = sessionRepository.findById(s.getId()).orElseThrow();
+        assertEquals(SessionStatus.COMPLETED, after.getStatus()); // AUTO_CLOSED 로 덮어써지지 않음
+        assertEquals(userCheckOut, after.getCheckOutAt()); // 사용자의 체크아웃 시각 그대로
+        assertEquals(0, userRepository.findById(u.getId()).orElseThrow()
+                .effectiveWarnings(StudyClock.studyMonthYm(kst(9, 4, 0)))); // 스스로 종료했으므로 경고 없음
     }
 
     @Test

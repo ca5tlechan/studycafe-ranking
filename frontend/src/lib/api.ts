@@ -17,6 +17,8 @@ export interface User {
   warningCount: number;
   /** 경고 임계 도달 → 이번 기간 랭킹 제외. */
   penalized: boolean;
+  /** 페널티 임계값. 정책 값의 단일 진실 공급원은 서버(StudyTimePolicy)이므로 프론트는 하드코딩하지 않는다. */
+  penaltyThreshold: number;
 }
 
 export interface LoginResponse {

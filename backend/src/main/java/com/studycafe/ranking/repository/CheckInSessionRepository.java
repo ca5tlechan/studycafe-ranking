@@ -31,6 +31,23 @@ public interface CheckInSessionRepository extends JpaRepository<CheckInSession, 
             + "where s.id = :id and s.status = com.studycafe.ranking.domain.SessionStatus.ACTIVE")
     int checkOutIfActive(@Param("id") Long id, @Param("at") Instant at);
 
+    /**
+     * 04:00 배치의 원자적 자동 마감(WHERE status=ACTIVE) — checkOutIfActive 와 동일 패턴.
+     * findAllByStatus(ACTIVE) 로 세션을 로드한 뒤 이걸로 실제 종료를 확정한다: 그 사이 사용자가
+     * 스스로 체크아웃했다면(경쟁) 0건이 되어 배치는 그 세션에 손대지 않는다.
+     * <p>{@code clearAutomatically = true} 가 필요하다: 이 벌크 UPDATE 는 DB row 는 바꾸지만
+     * findAllByStatus 로 이미 로드해 1차 캐시(identity map)에 있는 세션 엔티티는 갱신하지 않는다.
+     * clear() 없이 바로 이어서 재계산(StudyRecordService.recompute → findClosedOverlapping)이
+     * 같은 세션을 다시 조회하면, Hibernate 가 DB의 최신 값 대신 캐시의 stale 객체(checkOutAt=null)를
+     * 돌려줘 검증 예외가 난다(실제로 재현해 확인함). clear() 는 User 엔티티도 detach 시키므로,
+     * 경고 적립은 도메인 메서드(setter) 대신 UserRepository.addWarning() 벌크 업데이트로 한다.
+     */
+    @Modifying(clearAutomatically = true)
+    @Query("update CheckInSession s set s.checkOutAt = :at, "
+            + "s.status = com.studycafe.ranking.domain.SessionStatus.AUTO_CLOSED "
+            + "where s.id = :id and s.status = com.studycafe.ranking.domain.SessionStatus.ACTIVE")
+    int autoCloseIfActive(@Param("id") Long id, @Param("at") Instant at);
+
     /** current 표시용 — 카페까지 fetch. */
     @Query("select s from CheckInSession s join fetch s.cafe where s.user.id = :userId and s.status = :status")
     Optional<CheckInSession> findByUserIdAndStatusWithCafe(@Param("userId") Long userId,

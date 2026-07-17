@@ -13,8 +13,6 @@ import {
 import { CAFE_FALLBACK, fmtHM, fmtTime, studyTodayISO } from '../lib/format';
 import { useAuth } from '../lib/auth';
 
-const PENALTY_THRESHOLD = 3; // 백엔드 StudyTimePolicy.PENALTY_THRESHOLD 와 맞춤
-
 const WEEKDAY_KO: Record<Weekday, string> = {
   MONDAY: '월',
   TUESDAY: '화',
@@ -245,7 +243,7 @@ export default function MyPage() {
               </>
             ) : (
               <>
-                <b>경고 {user.warningCount}/{PENALTY_THRESHOLD}</b> — 04:00 전에 체크아웃하거나
+                <b>경고 {user.warningCount}/{user.penaltyThreshold}</b> — 04:00 전에 체크아웃하거나
                 이후 다시 체크인하면 경고가 쌓이지 않아요.
               </>
             )}
