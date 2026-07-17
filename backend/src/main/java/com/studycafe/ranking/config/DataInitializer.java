@@ -42,7 +42,7 @@ class DataInitializer implements CommandLineRunner {
                 new School("연세대학교", "연세대"),
                 new School("고려대학교", "고려대"),
                 new School("성균관대학교", "성대"),
-                new School("한양대학교", "한대"),
+                new School("한양대학교", "한양대"), // "한대"는 쓰지 않는 약칭 — 랭킹 이름에 그대로 노출된다
                 new School("서강대학교", "서강대"),
                 new School("중앙대학교", "중대"),
                 new School("경희대학교", "경희대")

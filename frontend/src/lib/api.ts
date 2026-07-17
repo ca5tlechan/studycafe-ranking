@@ -75,6 +75,49 @@ export interface StatsHourlyPattern {
   pattern: { hour: number; totalSeconds: number }[];
 }
 
+// ===== 랭킹(§5.2/§5.3) =====
+
+/** 백엔드 RankingPeriod 와 1:1. 쿼리 파라미터는 이 소문자 형태 그대로 보낸다. */
+export type RankingPeriod = 'this_week' | 'last_week' | 'this_month' | 'last_month' | 'this_year';
+
+/** 개인 랭킹 한 줄. seconds 는 랭킹 캡(하루 16h·주 84h)이 적용된 값이다(마이페이지와 다를 수 있다). */
+export interface RankEntry {
+  rank: number;
+  displayName: string; // 마스킹된 이름 — 예: 김O현(ㅁㅁ중)
+  seconds: number;
+  isMe: boolean;
+}
+
+/** podium=1~3위, list=4~10위, myRank=내 순위(10위 밖이어도 옴). 기간 내 기록이 없으면 myRank=null. */
+export interface IndividualRanking {
+  period: RankingPeriod;
+  podium: RankEntry[];
+  list: RankEntry[];
+  myRank: RankEntry | null;
+}
+
+/** 학교 랭킹 한 줄. avgSeconds = 그 기간 활동 인원 평균. */
+export interface SchoolEntry {
+  rank: number;
+  schoolName: string;
+  memberCount: number;
+  avgSeconds: number;
+}
+
+/** 최소 인원(5명) 미달 학교는 서버에서 이미 제외돼 온다. */
+export interface SchoolRanking {
+  period: RankingPeriod;
+  podium: SchoolEntry[];
+  list: SchoolEntry[];
+}
+
+/** 우리 학교 페이지. 무소속이면 available=false 이고 나머지는 null. */
+export interface SchoolMine {
+  available: boolean;
+  schoolName: string | null;
+  ranking: IndividualRanking | null;
+}
+
 export interface ApiErrorBody {
   status?: number;
   error?: string;
@@ -150,6 +193,13 @@ export const sessionApi = {
       method: 'POST',
       body: JSON.stringify({ cafeToken }),
     }),
+};
+
+export const rankingApi = {
+  individual: (period: RankingPeriod) =>
+    request<IndividualRanking>(`/rankings/individual?period=${period}`),
+  school: (period: RankingPeriod) => request<SchoolRanking>(`/rankings/school?period=${period}`),
+  schoolMine: (period: RankingPeriod) => request<SchoolMine>(`/rankings/school/mine?period=${period}`),
 };
 
 export const statsApi = {
