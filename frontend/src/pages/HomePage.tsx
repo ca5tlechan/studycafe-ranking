@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../lib/auth';
 import { sessionApi, type CurrentSession } from '../lib/api';
+import { CAFE_FALLBACK, fmtTime } from '../lib/format';
 
-function fmtTime(iso: string): string {
-  return new Date(iso).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false });
-}
 
-const cardStyle = { display: 'flex', flexDirection: 'column', gap: 12 } as const;
+const QrIcon = (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5" /><rect x="14" y="3" width="7" height="7" rx="1.5" /><rect x="3" y="14" width="7" height="7" rx="1.5" /><path d="M14 14h3v3h-3zM20 14v3M17 20h4M14 20h0" /></svg>
+);
 
 export default function HomePage() {
   const { user, logout } = useAuth();
@@ -48,25 +49,27 @@ export default function HomePage() {
         {loading ? (
           <div className="center-msg">불러오는 중…</div>
         ) : failed ? (
-          <div className="card" style={cardStyle}>
+          <div className="card stack">
             <span className="pill idle"><span className="dot" />불러오지 못함</span>
-            <div style={{ fontSize: 15, color: 'var(--ink-2)' }}>공부 상태를 불러오지 못했어요.</div>
+            <div className="state-line">공부 상태를 불러오지 못했어요.</div>
             <button className="btn" onClick={() => void load()}>다시 시도</button>
+            {/* 상태를 몰라도 토글은 가능하다 — 조회 실패가 기록 자체를 막지 않도록 길을 남긴다. */}
+            <Link className="btn ghost full" to="/checkin">{QrIcon}QR 체크인·체크아웃</Link>
           </div>
         ) : session?.active ? (
-          <div className="card" style={cardStyle}>
+          <div className="card stack">
             <span className="pill studying"><span className="dot live" />공부 중</span>
-            <div style={{ fontSize: 15, color: 'var(--ink-2)' }}>
-              <b>{session.cafeName}</b>에서 공부하고 있어요
+            <div className="state-line">
+              <b>{session.cafeName ?? CAFE_FALLBACK}</b>에서 공부하고 있어요
               {session.checkInAt && <> · <span className="num">{fmtTime(session.checkInAt)}</span> 시작</>}
             </div>
-            <p className="soon">QR 체크아웃 화면은 다음 업데이트에서 추가돼요.</p>
+            <Link className="btn full" to="/checkin">{QrIcon}QR 체크아웃</Link>
           </div>
         ) : (
-          <div className="card" style={cardStyle}>
+          <div className="card stack">
             <span className="pill idle"><span className="dot" />대기 중</span>
-            <div style={{ fontSize: 15, color: 'var(--ink-2)' }}>지금은 진행 중인 공부 기록이 없어요.</div>
-            <p className="soon">QR로 체크인하는 화면은 다음 업데이트에서 추가돼요.</p>
+            <div className="state-line">지금은 진행 중인 공부 기록이 없어요.</div>
+            <Link className="btn full" to="/checkin">{QrIcon}QR 체크인</Link>
           </div>
         )}
       </div>

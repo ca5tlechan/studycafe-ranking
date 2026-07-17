@@ -8,6 +8,7 @@ import AppLayout from './components/AppLayout';
 import LoginPage from './pages/LoginPage';
 import SignupPage from './pages/SignupPage';
 import HomePage from './pages/HomePage';
+import CheckInPage from './pages/CheckInPage';
 import MyPage from './pages/MyPage';
 import RankingPage from './pages/RankingPage';
 import SchoolPage from './pages/SchoolPage';
@@ -23,6 +24,7 @@ const router = createBrowserRouter([
     ),
     children: [
       { path: '/', element: <HomePage /> },
+      { path: '/checkin', element: <CheckInPage /> },
       { path: '/my', element: <MyPage /> },
       { path: '/ranking', element: <RankingPage /> },
       { path: '/school', element: <SchoolPage /> },

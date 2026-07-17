@@ -1,11 +1,14 @@
 /* ===== 스터디카페 랭킹 — 디자인 시스템 (챌린지 네이비 + 골드) ===== */
 :root {
   --ground:#f1f2f4; --surface:#ffffff; --surface-2:#f3f4f7;
-  --ink:#182338; --ink-2:#3e4a60; --muted:#6f7788; --faint:#a0a7b4;
+  /* --muted 는 본문급 안내 문구에 쓰므로 surface(#fff)·surface-2(#f3f4f7) 양쪽에서 AA 4.5:1 이상
+     이어야 한다 (각각 5.20:1, 4.72:1). */
+  --ink:#182338; --ink-2:#3e4a60; --muted:#656d7e; --faint:#a0a7b4;
   --line:#e3e5ea; --line-2:#eef0f3;
   --primary:#1c4fa2; --primary-ink:#153c7d; --primary-soft:#e6eefa;
   --on-primary:#ffffff; /* --primary 배경 위 전경색 (대비 8:1) */
-  --gold:#e0a219; --gold-ink:#95680d; --gold-soft:#f8ebc7;
+  /* --gold-ink 는 gold-soft 배경 위 전경색 (4.75:1). */
+  --gold:#e0a219; --gold-ink:#8a5f0c; --gold-soft:#f8ebc7;
   --active:#1f9d63; --danger:#c8402f;
   --shadow:0 1px 2px rgba(16,28,54,.05), 0 8px 24px -12px rgba(16,28,54,.2);
   --radius:20px; --radius-sm:14px;
@@ -129,6 +132,27 @@ button { font: inherit; cursor: pointer; }
 .link-btn {
   background: none; border: none; padding: 0; font-size: inherit; font-weight: 700;
   color: var(--primary-ink); text-decoration: underline;
+}
+
+/* ===== 체크인 ===== */
+.stack { display: flex; flex-direction: column; gap: 12px; }
+.state-line, .result-line { font-size: 15px; color: var(--ink-2); }
+.scan-hint { font-size: 13.5px; color: var(--muted); }
+.scanner {
+  position: relative; aspect-ratio: 1; display: grid; place-items: center;
+  border-radius: var(--radius-sm); overflow: hidden; background: var(--surface-2);
+}
+.scanner > div { width: 100%; }
+/* html5-qrcode 가 주입하는 video — 카드 비율에 맞춰 채운다 */
+.scanner video { display: block; width: 100%; height: 100%; object-fit: cover; }
+.scanner-msg {
+  position: absolute; inset: 0; display: grid; place-items: center;
+  padding: 20px; text-align: center; font-size: 13px; line-height: 1.6; color: var(--muted);
+}
+.notice {
+  margin-top: 12px; padding: 12px 14px; border-radius: 12px;
+  background: var(--gold-soft); color: var(--gold-ink);
+  font-size: 12.5px; line-height: 1.6;
 }
 
 /* ===== 상태/공용 ===== */
