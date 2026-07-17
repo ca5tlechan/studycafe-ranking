@@ -1,20 +1,17 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
+import { Html5Qrcode, Html5QrcodeScannerState, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import { ApiError, sessionApi, type CurrentSession, type SessionToggle } from '../lib/api';
+import { CAFE_FALLBACK, fmtTime } from '../lib/format';
 
 const SCANNER_ID = 'qr-reader';
 
 /** §3.6d — 10분 미만 세션은 집계에서 제외된다. 판정은 세션 전체 길이 기준. */
 const MIN_SESSION_SECONDS = 10 * 60;
 
-/** cafeName 은 타입상 null 이 가능하다. 빈칸으로 새면 "지금 에서 공부 중"이 된다. */
-const CAFE_FALLBACK = '현재 카페';
 
 type CameraState = 'starting' | 'running' | 'unavailable';
 
-const fmtTime = (iso: string): string =>
-  new Date(iso).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false });
 
 const secondsBetween = (fromIso: string, toIso: string): number =>
   Math.max(0, Math.floor((new Date(toIso).getTime() - new Date(fromIso).getTime()) / 1000));
@@ -51,7 +48,9 @@ type SubmitOutcome = 'applied' | 'rejected' | 'uncertain' | 'busy';
 function messageFor(err: unknown): string {
   if (err instanceof ApiError) {
     if (err.status === 404) return '이 카페의 QR이 아니에요. 카페에 부착된 QR을 찍어 주세요.';
-    if (err.status === 409) return '이미 체크인돼 있어요. 잠시 후 다시 시도해 주세요.';
+    // 409 = 다른 요청이 이미 체크인을 만든 상태. 여기서 "다시 시도"를 권하면 그 다음 토글이
+    // 체크아웃이 되어 버리므로, 재시도가 아니라 상태 확인으로 안내한다.
+    if (err.status === 409) return '이미 체크인돼 있어요. 홈에서 현재 상태를 확인해 주세요.';
   }
   return '기록에 실패했어요. 다시 시도해 주세요.';
 }
@@ -68,6 +67,7 @@ export default function CheckInPage() {
   const [scanNonce, setScanNonce] = useState(0); // 값이 바뀌면 스캐너를 다시 켠다
 
   const inFlightRef = useRef(false);
+  const rejectedTokenRef = useRef<string | null>(null); // 방금 거절당한 토큰 — 자동 재요청 방지
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const handledRef = useRef(false);
 
@@ -87,13 +87,18 @@ export default function CheckInPage() {
   /**
    * 넘겨받은 인스턴스만 정지한다. ref 를 다시 읽으면, 권한 승인이 늦어지는 사이 이전 effect 의
    * 뒷정리가 이미 교체된 새 스캐너를 멈춰 버린다(= 이전 카메라는 켜진 채로 남는다).
+   *
+   * 공개 필드 isScanning 으로 막으면 안 된다. 그 값은 video 의 'playing' 이벤트에서야 켜지는데,
+   * start() 프로미스는 그보다 먼저 resolve 된다. 그래서 정지 시점엔 대개 아직 false 이고,
+   * stop() 을 건너뛰면 카메라 트랙이 살아남는다. 라이브러리의 stop() 이 실제로 보는 값은 getState().
+   * stop() 은 트랙 정지(= 카메라 꺼짐)와 video 엘리먼트 제거까지 해주므로 clear() 는 부르지 않는다
+   * (clear() 는 elementId 로 DOM 을 찾아 비우기 때문에 새 스캐너의 화면을 지울 수 있다).
    */
   const stopScanner = useCallback(async (scanner: Html5Qrcode) => {
     try {
-      if (scanner.isScanning) await scanner.stop();
-      scanner.clear();
+      if (scanner.getState() !== Html5QrcodeScannerState.NOT_STARTED) await scanner.stop();
     } catch {
-      /* 이미 정지·해제된 경우 — 무시해도 되는 상태다 */
+      /* 이미 정지된 경우 — 무시해도 되는 상태다 */
     }
     if (scannerRef.current === scanner) scannerRef.current = null;
   }, []);
@@ -135,11 +140,21 @@ export default function CheckInPage() {
   const handleScan = useCallback(
     async (text: string) => {
       if (handledRef.current) return; // 초당 여러 번 디코딩되므로 첫 인식만 처리
+      // 거절된 QR 이 화면에 남아 있으면 초당 10번 다시 인식된다. 재스캔 자체는 안전하지만
+      // 같은 토큰을 무한히 재요청하게 되므로, 방금 거절당한 토큰은 보내지 않는다.
+      // (사용자가 올바른 QR 로 옮기면 토큰이 달라지므로 그때 정상 처리된다.)
+      if (text === rejectedTokenRef.current) return;
       handledRef.current = true;
       const outcome = await submit(text);
-      if (outcome === 'applied') await stopCurrent();
-      else if (outcome === 'uncertain') await holdForReconcile();
-      else handledRef.current = false; // 서버가 거절했거나 다른 요청 진행 중 → 재스캔 안전
+      if (outcome === 'applied') {
+        rejectedTokenRef.current = null;
+        await stopCurrent();
+      } else if (outcome === 'uncertain') {
+        await holdForReconcile();
+      } else {
+        if (outcome === 'rejected') rejectedTokenRef.current = text;
+        handledRef.current = false; // 서버가 거절했거나 다른 요청 진행 중 → 재스캔 안전
+      }
     },
     [submit, stopCurrent, holdForReconcile],
   );
@@ -184,9 +199,10 @@ export default function CheckInPage() {
     else if (outcome === 'uncertain') await holdForReconcile();
   };
 
-  /** 반영 여부 확인 후 사용자가 명시적으로 다시 스캔할 때만 카메라를 재개한다. */
+  /** 사용자가 명시적으로 요청할 때만 카메라를 다시 켠다(반영 여부 확인 후, 또는 카메라 실패 후). */
   const rescan = () => {
     handledRef.current = false;
+    rejectedTokenRef.current = null;
     setUncertain(false);
     setError('');
     setCamera('starting');
@@ -239,23 +255,28 @@ export default function CheckInPage() {
           </div>
         ) : (
           <div className="card stack">
-            {statusFailed ? (
-              <div className="scan-hint">
-                지금 상태를 불러오지 못했어요. QR을 찍으면 체크인/체크아웃이 전환돼요.{' '}
-                <button type="button" className="link-btn" onClick={() => void loadStatus()}>
-                  다시 시도
-                </button>
-              </div>
-            ) : uncertain ? (
+            {/* uncertain 을 먼저 본다. 토글이 5xx 로 실패하면 뒤이은 상태 재조회도 같은 이유로
+                실패하기 쉬운데, statusFailed 를 먼저 보면 "QR을 찍으면 전환돼요"라는 반대 안내가
+                뜬다(카메라는 이미 꺼져 있고, 재스캔은 이중 토글을 부른다). */}
+            {uncertain ? (
               // 반영 여부를 모르는 실패 뒤 — 서버에 실제로 뭐가 남았는지를 보여준다.
               <div className="scan-hint">
-                {current?.active ? (
+                {statusFailed ? (
+                  <>서버 상태도 확인하지 못했어요. 연결이 돌아온 뒤 홈에서 기록을 확인해 주세요.</>
+                ) : current?.active ? (
                   <>
                     서버에는 <b>{current.cafeName ?? CAFE_FALLBACK}</b>에서 <b>공부 중</b>으로 기록돼 있어요.
                   </>
                 ) : (
                   <>서버에는 진행 중인 공부 기록이 <b>없어요</b>.</>
                 )}
+              </div>
+            ) : statusFailed ? (
+              <div className="scan-hint">
+                지금 상태를 불러오지 못했어요. QR을 찍으면 체크인/체크아웃이 전환돼요.{' '}
+                <button type="button" className="link-btn" onClick={() => void loadStatus()}>
+                  다시 시도
+                </button>
               </div>
             ) : (
               <div className="scan-hint">
@@ -273,7 +294,7 @@ export default function CheckInPage() {
               // 카메라를 다시 켜지 않는다 — QR이 화면에 남아 있어 곧바로 재스캔되면 반대로 토글된다.
               <button className="btn" onClick={rescan}>다시 스캔</button>
             ) : (
-              <div className={`scanner${camera === 'running' ? ' on' : ''}`}>
+              <div className="scanner">
                 <div id={SCANNER_ID} />
                 {camera === 'starting' && (
                   <div className="scanner-msg">
@@ -284,7 +305,14 @@ export default function CheckInPage() {
                   <div className="scanner-msg">
                     카메라를 열 수 없어요.
                     <br />
-                    브라우저에서 카메라 권한을 허용했는지 확인해 주세요.
+                    {/* 보안 컨텍스트(HTTPS/localhost)가 아니면 권한과 무관하게 카메라 자체를 못 연다.
+                        폰에서 http://192.168.x.x 로 접속한 경우가 여기 해당한다. */}
+                    {window.isSecureContext
+                      ? '브라우저에서 카메라 권한을 허용했는지 확인해 주세요.'
+                      : 'HTTPS 연결에서만 카메라를 쓸 수 있어요.'}
+                    <br />
+                    {/* 이 상태에서 스캐너를 다시 만들 방법이 없으면 화면이 막힌다(프로덕션엔 수동 입력이 없다). */}
+                    <button type="button" className="btn ghost" onClick={rescan}>다시 시도</button>
                   </div>
                 )}
               </div>

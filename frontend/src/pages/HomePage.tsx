@@ -2,10 +2,8 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../lib/auth';
 import { sessionApi, type CurrentSession } from '../lib/api';
+import { CAFE_FALLBACK, fmtTime } from '../lib/format';
 
-function fmtTime(iso: string): string {
-  return new Date(iso).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false });
-}
 
 const QrIcon = (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5" /><rect x="14" y="3" width="7" height="7" rx="1.5" /><rect x="3" y="14" width="7" height="7" rx="1.5" /><path d="M14 14h3v3h-3zM20 14v3M17 20h4M14 20h0" /></svg>
@@ -62,8 +60,7 @@ export default function HomePage() {
           <div className="card stack">
             <span className="pill studying"><span className="dot live" />공부 중</span>
             <div className="state-line">
-              {/* cafeName 은 타입상 null 이 가능하다 — 빈칸으로 새면 "에서 공부하고 있어요"가 된다. */}
-              <b>{session.cafeName ?? '현재 카페'}</b>에서 공부하고 있어요
+              <b>{session.cafeName ?? CAFE_FALLBACK}</b>에서 공부하고 있어요
               {session.checkInAt && <> · <span className="num">{fmtTime(session.checkInAt)}</span> 시작</>}
             </div>
             <Link className="btn full" to="/checkin">{QrIcon}QR 체크아웃</Link>
