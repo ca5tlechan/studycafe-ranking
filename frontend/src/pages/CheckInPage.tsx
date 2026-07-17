@@ -39,7 +39,7 @@ const UNCERTAIN_MESSAGE =
 const isRejected = (err: unknown): boolean => err instanceof ApiError && err.status < 500;
 
 /** 토글 결과. applied=반영됨, rejected=반영 안 됨(재시도 안전), uncertain=반영 여부 모름 */
-type SubmitOutcome = 'applied' | 'rejected' | 'uncertain' | 'busy';
+type SubmitOutcome = 'applied' | 'rejected' | 'uncertain';
 
 /**
  * 서버 메시지를 그대로 노출하지 않는다. 예컨대 잘못된 QR의 404 메시지에는 스캔한 토큰 값이
@@ -64,9 +64,9 @@ export default function CheckInPage() {
   const [busy, setBusy] = useState(false);
   const [manual, setManual] = useState('');
   const [uncertain, setUncertain] = useState(false); // 반영 여부를 모르는 실패 → 자동 재스캔 금지
+  const [reconciling, setReconciling] = useState(false); // 서버 상태 재조회 중 → 아직 결론 아님
   const [scanNonce, setScanNonce] = useState(0); // 값이 바뀌면 스캐너를 다시 켠다
 
-  const inFlightRef = useRef(false);
   const rejectedTokenRef = useRef<string | null>(null); // 방금 거절당한 토큰 — 자동 재요청 방지
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const handledRef = useRef(false);
@@ -108,13 +108,8 @@ export default function CheckInPage() {
     if (scanner) await stopScanner(scanner);
   }, [stopScanner]);
 
-  /**
-   * 토글 요청의 단일 진입점. 수동 실행과 카메라 콜백이 같은 in-flight 잠금을 공유해야 한다.
-   * (수동 요청 중 QR이 인식되면 토글이 연속 전환돼 버린다.)
-   */
+  /** 토글 요청 자체. 잠금은 호출자(runToggle)가 쥔다. */
   const submit = useCallback(async (cafeToken: string): Promise<SubmitOutcome> => {
-    if (inFlightRef.current) return 'busy';
-    inFlightRef.current = true;
     setBusy(true);
     setError('');
     try {
@@ -125,38 +120,59 @@ export default function CheckInPage() {
       setError(rejected ? messageFor(err) : UNCERTAIN_MESSAGE);
       return rejected ? 'rejected' : 'uncertain';
     } finally {
-      inFlightRef.current = false;
       setBusy(false);
     }
   }, []);
 
-  /** 반영 여부를 모르는 실패 — 자동 재스캔을 막고 서버의 실제 상태를 다시 물어 보여준다. */
+  /**
+   * 반영 여부를 모르는 실패 — 자동 재스캔을 막고 서버의 실제 상태를 다시 물어 보여준다.
+   * 재조회가 끝나기 전에는 화면의 상태가 아직 옛것이므로, reconciling 으로 구분해 조작을 막는다.
+   */
   const holdForReconcile = useCallback(async () => {
     await stopCurrent();
     setUncertain(true);
-    await loadStatus();
+    setReconciling(true);
+    try {
+      await loadStatus();
+    } finally {
+      setReconciling(false);
+    }
   }, [stopCurrent, loadStatus]);
 
-  const handleScan = useCallback(
-    async (text: string) => {
-      if (handledRef.current) return; // 초당 여러 번 디코딩되므로 첫 인식만 처리
-      // 거절된 QR 이 화면에 남아 있으면 초당 10번 다시 인식된다. 재스캔 자체는 안전하지만
-      // 같은 토큰을 무한히 재요청하게 되므로, 방금 거절당한 토큰은 보내지 않는다.
-      // (사용자가 올바른 QR 로 옮기면 토큰이 달라지므로 그때 정상 처리된다.)
-      if (text === rejectedTokenRef.current) return;
+  /**
+   * 토글의 단일 진입점 — 카메라 콜백과 수동 실행이 이 잠금 하나를 공유한다.
+   * handledRef 는 await 이전에 동기적으로 선점하므로 두 경로가 겹쳐 두 번 토글될 수 없다.
+   * (예전엔 수동 실행이 이 잠금을 안 쥐어서, 수동 토글 직후 도착한 QR 인식이 곧바로 반대로
+   *  토글해 버릴 수 있었다.)
+   * 성공·미상일 때는 잠금을 풀지 않는다. 결과 화면이나 재조회 화면으로 넘어가기 때문이다.
+   */
+  const runToggle = useCallback(
+    async (token: string) => {
+      if (handledRef.current) return;
       handledRef.current = true;
-      const outcome = await submit(text);
+      const outcome = await submit(token);
       if (outcome === 'applied') {
         rejectedTokenRef.current = null;
         await stopCurrent();
       } else if (outcome === 'uncertain') {
         await holdForReconcile();
       } else {
-        if (outcome === 'rejected') rejectedTokenRef.current = text;
-        handledRef.current = false; // 서버가 거절했거나 다른 요청 진행 중 → 재스캔 안전
+        rejectedTokenRef.current = token; // 같은 토큰 자동 재요청 방지
+        handledRef.current = false; // 서버가 거절 → 상태 불변 → 다른 QR 은 다시 시도해도 안전
       }
     },
     [submit, stopCurrent, holdForReconcile],
+  );
+
+  const handleScan = useCallback(
+    async (text: string) => {
+      // 거절된 QR 이 화면에 남아 있으면 초당 10번 다시 인식된다. 재스캔 자체는 안전하지만
+      // 같은 토큰을 무한히 재요청하게 되므로, 방금 거절당한 토큰은 보내지 않는다.
+      // (사용자가 올바른 QR 로 옮기면 토큰이 달라지므로 그때 정상 처리된다.)
+      if (text === rejectedTokenRef.current) return;
+      await runToggle(text);
+    },
+    [runToggle],
   );
 
   useEffect(() => {
@@ -193,11 +209,7 @@ export default function CheckInPage() {
     // scanNonce 가 바뀌면(= 사용자가 다시 스캔을 누르면) 스캐너를 새로 켠다.
   }, [handleScan, stopScanner, scanNonce]);
 
-  const runManual = async () => {
-    const outcome = await submit(manual.trim());
-    if (outcome === 'applied') await stopCurrent();
-    else if (outcome === 'uncertain') await holdForReconcile();
-  };
+  const runManual = () => void runToggle(manual.trim());
 
   /** 사용자가 명시적으로 요청할 때만 카메라를 다시 켠다(반영 여부 확인 후, 또는 카메라 실패 후). */
   const rescan = () => {
@@ -261,7 +273,10 @@ export default function CheckInPage() {
             {uncertain ? (
               // 반영 여부를 모르는 실패 뒤 — 서버에 실제로 뭐가 남았는지를 보여준다.
               <div className="scan-hint">
-                {statusFailed ? (
+                {reconciling ? (
+                  // 아직 재조회 중 — current 는 토글 이전의 옛 상태다. 결론인 것처럼 보이면 안 된다.
+                  <>서버에 실제로 기록됐는지 확인하는 중이에요…</>
+                ) : statusFailed ? (
                   <>서버 상태도 확인하지 못했어요. 연결이 돌아온 뒤 홈에서 기록을 확인해 주세요.</>
                 ) : current?.active ? (
                   <>
@@ -292,7 +307,10 @@ export default function CheckInPage() {
 
             {uncertain ? (
               // 카메라를 다시 켜지 않는다 — QR이 화면에 남아 있어 곧바로 재스캔되면 반대로 토글된다.
-              <button className="btn" onClick={rescan}>다시 스캔</button>
+              // 재조회가 끝나기 전엔 뭐가 기록됐는지 모르므로 그동안은 다시 스캔도 막는다.
+              <button className="btn" disabled={reconciling} onClick={rescan}>
+                {reconciling ? '확인하는 중…' : '다시 스캔'}
+              </button>
             ) : (
               <div className="scanner">
                 <div id={SCANNER_ID} />
@@ -343,7 +361,13 @@ export default function CheckInPage() {
               placeholder="카페 QR 토큰"
               aria-label="카페 QR 토큰"
             />
-            <button className="btn" disabled={busy || !manual.trim()} onClick={() => void runManual()}>
+            {/* uncertain 이면 잠금(handledRef)이 잡혀 있어 눌러도 아무 일이 없다 → 아예 막는다.
+                재개는 "다시 스캔"으로만 한다(=서버 상태를 확인한 뒤). */}
+            <button
+              className="btn"
+              disabled={busy || uncertain || reconciling || !manual.trim()}
+              onClick={runManual}
+            >
               토글 실행
             </button>
           </div>
