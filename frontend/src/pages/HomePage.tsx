@@ -62,7 +62,8 @@ export default function HomePage() {
           <div className="card stack">
             <span className="pill studying"><span className="dot live" />공부 중</span>
             <div className="state-line">
-              <b>{session.cafeName}</b>에서 공부하고 있어요
+              {/* cafeName 은 타입상 null 이 가능하다 — 빈칸으로 새면 "에서 공부하고 있어요"가 된다. */}
+              <b>{session.cafeName ?? '현재 카페'}</b>에서 공부하고 있어요
               {session.checkInAt && <> · <span className="num">{fmtTime(session.checkInAt)}</span> 시작</>}
             </div>
             <Link className="btn full" to="/checkin">{QrIcon}QR 체크아웃</Link>

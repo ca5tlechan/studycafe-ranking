@@ -8,6 +8,9 @@ const SCANNER_ID = 'qr-reader';
 /** §3.6d — 10분 미만 세션은 집계에서 제외된다. 판정은 세션 전체 길이 기준. */
 const MIN_SESSION_SECONDS = 10 * 60;
 
+/** cafeName 은 타입상 null 이 가능하다. 빈칸으로 새면 "지금 에서 공부 중"이 된다. */
+const CAFE_FALLBACK = '현재 카페';
+
 type CameraState = 'starting' | 'running' | 'unavailable';
 
 const fmtTime = (iso: string): string =>
@@ -28,6 +31,19 @@ const fmtDuration = (secs: number): string => {
   return h > 0 ? `${h}시간 ${m}분` : `${m}분`;
 };
 
+const UNCERTAIN_MESSAGE =
+  '기록이 반영됐는지 확인하지 못했어요. 아래 현재 상태를 확인하고, 필요하면 다시 스캔해 주세요.';
+
+/**
+ * 토글은 상태를 바꾸는 요청이라, 실패를 "반영 안 됨"으로 단정하면 안 된다.
+ * - 4xx: 서버가 요청을 거절했으므로 상태가 바뀌지 않았다 → 곧바로 재스캔해도 안전하다.
+ * - 5xx·네트워크: 서버가 이미 반영하고 응답만 유실됐을 수 있다 → 재스캔하면 반대로 토글된다.
+ */
+const isRejected = (err: unknown): boolean => err instanceof ApiError && err.status < 500;
+
+/** 토글 결과. applied=반영됨, rejected=반영 안 됨(재시도 안전), uncertain=반영 여부 모름 */
+type SubmitOutcome = 'applied' | 'rejected' | 'uncertain' | 'busy';
+
 /**
  * 서버 메시지를 그대로 노출하지 않는다. 예컨대 잘못된 QR의 404 메시지에는 스캔한 토큰 값이
  * 그대로 담겨 오므로, 우리가 예상한 상태만 문구로 매핑하고 나머지는 일반 문구로 통일한다.
@@ -37,7 +53,7 @@ function messageFor(err: unknown): string {
     if (err.status === 404) return '이 카페의 QR이 아니에요. 카페에 부착된 QR을 찍어 주세요.';
     if (err.status === 409) return '이미 체크인돼 있어요. 잠시 후 다시 시도해 주세요.';
   }
-  return '기록에 실패했어요. 연결을 확인하고 다시 시도해 주세요.';
+  return '기록에 실패했어요. 다시 시도해 주세요.';
 }
 
 export default function CheckInPage() {
@@ -48,7 +64,10 @@ export default function CheckInPage() {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [manual, setManual] = useState('');
+  const [uncertain, setUncertain] = useState(false); // 반영 여부를 모르는 실패 → 자동 재스캔 금지
+  const [scanNonce, setScanNonce] = useState(0); // 값이 바뀌면 스캐너를 다시 켠다
 
+  const inFlightRef = useRef(false);
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const handledRef = useRef(false);
 
@@ -84,33 +103,51 @@ export default function CheckInPage() {
     if (scanner) await stopScanner(scanner);
   }, [stopScanner]);
 
-  /** 토글 성공 여부를 돌려준다. 실패면 다시 스캔할 수 있게 카메라를 계속 켜 둔다. */
-  const submit = useCallback(async (cafeToken: string): Promise<boolean> => {
+  /**
+   * 토글 요청의 단일 진입점. 수동 실행과 카메라 콜백이 같은 in-flight 잠금을 공유해야 한다.
+   * (수동 요청 중 QR이 인식되면 토글이 연속 전환돼 버린다.)
+   */
+  const submit = useCallback(async (cafeToken: string): Promise<SubmitOutcome> => {
+    if (inFlightRef.current) return 'busy';
+    inFlightRef.current = true;
     setBusy(true);
     setError('');
     try {
       setResult(await sessionApi.toggle(cafeToken));
-      return true;
+      return 'applied';
     } catch (err) {
-      setError(messageFor(err));
-      return false;
+      const rejected = isRejected(err);
+      setError(rejected ? messageFor(err) : UNCERTAIN_MESSAGE);
+      return rejected ? 'rejected' : 'uncertain';
     } finally {
+      inFlightRef.current = false;
       setBusy(false);
     }
   }, []);
+
+  /** 반영 여부를 모르는 실패 — 자동 재스캔을 막고 서버의 실제 상태를 다시 물어 보여준다. */
+  const holdForReconcile = useCallback(async () => {
+    await stopCurrent();
+    setUncertain(true);
+    await loadStatus();
+  }, [stopCurrent, loadStatus]);
 
   const handleScan = useCallback(
     async (text: string) => {
       if (handledRef.current) return; // 초당 여러 번 디코딩되므로 첫 인식만 처리
       handledRef.current = true;
-      const ok = await submit(text);
-      if (ok) await stopCurrent();
-      else handledRef.current = false;
+      const outcome = await submit(text);
+      if (outcome === 'applied') await stopCurrent();
+      else if (outcome === 'uncertain') await holdForReconcile();
+      else handledRef.current = false; // 서버가 거절했거나 다른 요청 진행 중 → 재스캔 안전
     },
-    [submit, stopCurrent],
+    [submit, stopCurrent, holdForReconcile],
   );
 
   useEffect(() => {
+    // 스캐너를 감추는 분기(uncertain 등)에서는 대상 엘리먼트가 없다. 생성자가 던지므로 먼저 막는다.
+    if (!document.getElementById(SCANNER_ID)) return;
+
     let cancelled = false;
     const scanner = new Html5Qrcode(SCANNER_ID, {
       formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE],
@@ -138,11 +175,22 @@ export default function CheckInPage() {
       cancelled = true;
       void stopScanner(scanner);
     };
-  }, [handleScan, stopScanner]);
+    // scanNonce 가 바뀌면(= 사용자가 다시 스캔을 누르면) 스캐너를 새로 켠다.
+  }, [handleScan, stopScanner, scanNonce]);
 
   const runManual = async () => {
-    const ok = await submit(manual.trim());
-    if (ok) await stopCurrent();
+    const outcome = await submit(manual.trim());
+    if (outcome === 'applied') await stopCurrent();
+    else if (outcome === 'uncertain') await holdForReconcile();
+  };
+
+  /** 반영 여부 확인 후 사용자가 명시적으로 다시 스캔할 때만 카메라를 재개한다. */
+  const rescan = () => {
+    handledRef.current = false;
+    setUncertain(false);
+    setError('');
+    setCamera('starting');
+    setScanNonce((n) => n + 1);
   };
 
   const checkedOutSeconds =
@@ -198,11 +246,22 @@ export default function CheckInPage() {
                   다시 시도
                 </button>
               </div>
+            ) : uncertain ? (
+              // 반영 여부를 모르는 실패 뒤 — 서버에 실제로 뭐가 남았는지를 보여준다.
+              <div className="scan-hint">
+                {current?.active ? (
+                  <>
+                    서버에는 <b>{current.cafeName ?? CAFE_FALLBACK}</b>에서 <b>공부 중</b>으로 기록돼 있어요.
+                  </>
+                ) : (
+                  <>서버에는 진행 중인 공부 기록이 <b>없어요</b>.</>
+                )}
+              </div>
             ) : (
               <div className="scan-hint">
                 {current?.active ? (
                   <>
-                    지금 <b>{current.cafeName}</b>에서 공부 중이에요. QR을 찍으면 <b>체크아웃</b>돼요.
+                    지금 <b>{current.cafeName ?? CAFE_FALLBACK}</b>에서 공부 중이에요. QR을 찍으면 <b>체크아웃</b>돼요.
                   </>
                 ) : (
                   <>QR을 찍으면 <b>체크인</b>돼요.</>
@@ -210,21 +269,26 @@ export default function CheckInPage() {
               </div>
             )}
 
-            <div className={`scanner${camera === 'running' ? ' on' : ''}`}>
-              <div id={SCANNER_ID} />
-              {camera === 'starting' && (
-                <div className="scanner-msg">
-                  <div className="spinner" aria-label="카메라 준비 중" />
-                </div>
-              )}
-              {camera === 'unavailable' && (
-                <div className="scanner-msg">
-                  카메라를 열 수 없어요.
-                  <br />
-                  브라우저에서 카메라 권한을 허용했는지 확인해 주세요.
-                </div>
-              )}
-            </div>
+            {uncertain ? (
+              // 카메라를 다시 켜지 않는다 — QR이 화면에 남아 있어 곧바로 재스캔되면 반대로 토글된다.
+              <button className="btn" onClick={rescan}>다시 스캔</button>
+            ) : (
+              <div className={`scanner${camera === 'running' ? ' on' : ''}`}>
+                <div id={SCANNER_ID} />
+                {camera === 'starting' && (
+                  <div className="scanner-msg">
+                    <div className="spinner" aria-label="카메라 준비 중" />
+                  </div>
+                )}
+                {camera === 'unavailable' && (
+                  <div className="scanner-msg">
+                    카메라를 열 수 없어요.
+                    <br />
+                    브라우저에서 카메라 권한을 허용했는지 확인해 주세요.
+                  </div>
+                )}
+              </div>
+            )}
 
             {busy && <div className="scan-hint">기록하는 중…</div>}
           </div>
