@@ -47,6 +47,34 @@ export interface SignupInput {
   schoolId: number | null;
 }
 
+// ===== 마이페이지 통계(§5.1) =====
+
+/** 이번 주/이번 달 총 공부시간. 실제 시간 그대로 — 랭킹 캡(하루 16h·주 84h) 미적용. */
+export interface StatsOverview {
+  weekSeconds: number;
+  monthSeconds: number;
+}
+
+/** 월간 캘린더. days 는 기록이 있는 날짜만 담겨 온다(빈 날은 아예 없음). */
+export interface StatsCalendar {
+  year: number;
+  month: number;
+  days: { date: string; totalSeconds: number }[];
+}
+
+/** 백엔드가 DayOfWeek.name() 을 그대로 준다. 항상 월~일 7개. */
+export type Weekday = 'MONDAY' | 'TUESDAY' | 'WEDNESDAY' | 'THURSDAY' | 'FRIDAY' | 'SATURDAY' | 'SUNDAY';
+
+/** 요일별 '하루 평균' — 기록이 있는 해당 요일들의 평균이다(이번 주 breakdown 이 아니다). */
+export interface StatsWeekdayPattern {
+  pattern: { weekday: Weekday; avgSeconds: number }[];
+}
+
+/** 시간대별 총량. 벽시계 0~23시 24개 고정(04:00 분할 미적용). */
+export interface StatsHourlyPattern {
+  pattern: { hour: number; totalSeconds: number }[];
+}
+
 export interface ApiErrorBody {
   status?: number;
   error?: string;
@@ -122,4 +150,12 @@ export const sessionApi = {
       method: 'POST',
       body: JSON.stringify({ cafeToken }),
     }),
+};
+
+export const statsApi = {
+  overview: () => request<StatsOverview>('/me/stats/overview'),
+  calendar: (year: number, month: number) =>
+    request<StatsCalendar>(`/me/stats/calendar?year=${year}&month=${month}`),
+  weekdayPattern: () => request<StatsWeekdayPattern>('/me/stats/weekday-pattern'),
+  hourlyPattern: () => request<StatsHourlyPattern>('/me/stats/hourly-pattern'),
 };
