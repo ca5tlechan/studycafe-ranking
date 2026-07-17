@@ -28,11 +28,14 @@ export interface CurrentSession {
   cafeName: string | null;
 }
 
+/** 백엔드 SessionStatus(§4)와 1:1. 값이 늘면 여기부터 깨지도록 유니온으로 고정한다. */
+export type SessionStatus = 'ACTIVE' | 'COMPLETED' | 'AUTO_CLOSED' | 'FORCE_CLOSED';
+
 /** 토글 결과. 카페 QR 한 장으로 체크인/체크아웃이 전환된다. */
 export interface SessionToggle {
   action: 'CHECK_IN' | 'CHECK_OUT';
   sessionId: number;
-  status: string;
+  status: SessionStatus;
   checkInAt: string;
   checkOutAt: string | null;
 }

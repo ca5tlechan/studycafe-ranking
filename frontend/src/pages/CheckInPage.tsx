@@ -28,11 +28,14 @@ const fmtDuration = (secs: number): string => {
   return h > 0 ? `${h}시간 ${m}분` : `${m}분`;
 };
 
+/**
+ * 서버 메시지를 그대로 노출하지 않는다. 예컨대 잘못된 QR의 404 메시지에는 스캔한 토큰 값이
+ * 그대로 담겨 오므로, 우리가 예상한 상태만 문구로 매핑하고 나머지는 일반 문구로 통일한다.
+ */
 function messageFor(err: unknown): string {
   if (err instanceof ApiError) {
     if (err.status === 404) return '이 카페의 QR이 아니에요. 카페에 부착된 QR을 찍어 주세요.';
     if (err.status === 409) return '이미 체크인돼 있어요. 잠시 후 다시 시도해 주세요.';
-    return err.message;
   }
   return '기록에 실패했어요. 연결을 확인하고 다시 시도해 주세요.';
 }
@@ -62,16 +65,24 @@ export default function CheckInPage() {
     void loadStatus();
   }, [loadStatus]);
 
-  const stopScanner = useCallback(async () => {
-    const scanner = scannerRef.current;
-    if (!scanner) return;
+  /**
+   * 넘겨받은 인스턴스만 정지한다. ref 를 다시 읽으면, 권한 승인이 늦어지는 사이 이전 effect 의
+   * 뒷정리가 이미 교체된 새 스캐너를 멈춰 버린다(= 이전 카메라는 켜진 채로 남는다).
+   */
+  const stopScanner = useCallback(async (scanner: Html5Qrcode) => {
     try {
       if (scanner.isScanning) await scanner.stop();
       scanner.clear();
     } catch {
       /* 이미 정지·해제된 경우 — 무시해도 되는 상태다 */
     }
+    if (scannerRef.current === scanner) scannerRef.current = null;
   }, []);
+
+  const stopCurrent = useCallback(async () => {
+    const scanner = scannerRef.current;
+    if (scanner) await stopScanner(scanner);
+  }, [stopScanner]);
 
   /** 토글 성공 여부를 돌려준다. 실패면 다시 스캔할 수 있게 카메라를 계속 켜 둔다. */
   const submit = useCallback(async (cafeToken: string): Promise<boolean> => {
@@ -93,10 +104,10 @@ export default function CheckInPage() {
       if (handledRef.current) return; // 초당 여러 번 디코딩되므로 첫 인식만 처리
       handledRef.current = true;
       const ok = await submit(text);
-      if (ok) await stopScanner();
+      if (ok) await stopCurrent();
       else handledRef.current = false;
     },
-    [submit, stopScanner],
+    [submit, stopCurrent],
   );
 
   useEffect(() => {
@@ -116,7 +127,7 @@ export default function CheckInPage() {
       )
       .then(() => {
         // StrictMode 이중 마운트/이탈 시 켜 둔 카메라가 남지 않도록
-        if (cancelled) void stopScanner();
+        if (cancelled) void stopScanner(scanner);
         else setCamera('running');
       })
       .catch(() => {
@@ -125,13 +136,13 @@ export default function CheckInPage() {
 
     return () => {
       cancelled = true;
-      void stopScanner();
+      void stopScanner(scanner);
     };
   }, [handleScan, stopScanner]);
 
   const runManual = async () => {
     const ok = await submit(manual.trim());
-    if (ok) await stopScanner();
+    if (ok) await stopCurrent();
   };
 
   const checkedOutSeconds =

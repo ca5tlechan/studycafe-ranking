@@ -55,6 +55,8 @@ export default function HomePage() {
             <span className="pill idle"><span className="dot" />불러오지 못함</span>
             <div className="state-line">공부 상태를 불러오지 못했어요.</div>
             <button className="btn" onClick={() => void load()}>다시 시도</button>
+            {/* 상태를 몰라도 토글은 가능하다 — 조회 실패가 기록 자체를 막지 않도록 길을 남긴다. */}
+            <Link className="btn ghost full" to="/checkin">{QrIcon}QR 체크인·체크아웃</Link>
           </div>
         ) : session?.active ? (
           <div className="card stack">
