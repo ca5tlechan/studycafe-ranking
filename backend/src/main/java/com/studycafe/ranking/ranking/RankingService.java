@@ -12,6 +12,7 @@ import com.studycafe.ranking.repository.DailyStudyRecordRepository;
 import com.studycafe.ranking.repository.UserRepository;
 import com.studycafe.ranking.studytime.StudyClock;
 import com.studycafe.ranking.studytime.StudyTimeAggregator;
+import com.studycafe.ranking.studytime.StudyTimePolicy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -155,6 +156,11 @@ public class RankingService {
         for (Object[] row : recordRepository.findUserSecondsInPeriod(period.start(today), period.end(today))) {
             dailyByUser.computeIfAbsent((Long) row[0], k -> new ArrayList<>()).add((Long) row[1]);
         }
+        // 페널티 유저는 모든 랭킹(개인·학교 평균 분모)에서 제외(§3.6c). 여기 한 곳에서 걸러 양쪽에 반영한다.
+        // 현재 스터디-월 기준이라, 월이 바뀌면(경고 리셋) 자동으로 다시 포함된다.
+        dailyByUser.keySet().removeAll(
+                userRepository.findPenalizedUserIds(StudyClock.monthYm(today), StudyTimePolicy.PENALTY_THRESHOLD));
+
         boolean weekly = period.isWeekly();
         Map<Long, Long> capped = new HashMap<>();
         dailyByUser.forEach((userId, daily) ->

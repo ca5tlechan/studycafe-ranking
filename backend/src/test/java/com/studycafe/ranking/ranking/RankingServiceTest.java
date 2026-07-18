@@ -14,6 +14,7 @@ import com.studycafe.ranking.repository.DailyStudyRecordRepository;
 import com.studycafe.ranking.repository.SchoolRepository;
 import com.studycafe.ranking.repository.UserRepository;
 import com.studycafe.ranking.studytime.StudyClock;
+import com.studycafe.ranking.studytime.StudyTimePolicy;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -176,6 +177,64 @@ class RankingServiceTest {
         assertEquals(4, r.list().get(0).rank());
         assertEquals(10, r.list().get(6).rank());
         assertEquals(11, r.myRank().rank());    // top10 밖이어도 내 순위 표시
+        assertTrue(r.myRank().isMe());
+    }
+
+    @Test
+    @DisplayName("페널티(경고 3회) 유저는 개인 랭킹에서 제외된다(§3.6c)")
+    void penalizedUserExcludedFromIndividual() {
+        User clean = user("clean", "김정상", 1, schoolA);
+        User bad = user("bad", "박페널", 1, schoolA);
+        record(clean, 5 * H);
+        record(bad, 20 * H); // 기록만 보면 1위여야 하지만 페널티로 제외
+
+        int ym = StudyClock.studyMonthYm(Instant.now());
+        for (int i = 0; i < StudyTimePolicy.PENALTY_THRESHOLD; i++) {
+            bad.addWarning(ym);
+        }
+        userRepository.saveAndFlush(bad);
+
+        IndividualRankingResponse r = rankingService.individual(clean.getId(), RankingPeriod.THIS_YEAR);
+        // bad(20h)가 빠지고 clean(요청자)만 1위로 남는다
+        assertEquals(1, r.podium().size());
+        assertEquals(1, r.podium().get(0).rank());
+        assertTrue(r.podium().get(0).isMe());
+    }
+
+    @Test
+    @DisplayName("페널티 유저는 학교 랭킹 평균 분모에서도 제외된다(§3.6c) — cappedTotalsByUser 공유 회귀 방지")
+    void penalizedUserExcludedFromSchoolRanking() {
+        // schoolA 최소인원(5) 를 딱 채우는 정상 유저 5명 + 페널티 유저 1명(더 큰 시간, 빠져야 함)
+        for (int i = 0; i < 5; i++) {
+            record(user("ok" + i, "김정상", 1, schoolA), 3 * H);
+        }
+        User bad = user("bad2", "박페널", 1, schoolA);
+        record(bad, 30 * H);
+        int ym = StudyClock.studyMonthYm(Instant.now());
+        for (int i = 0; i < StudyTimePolicy.PENALTY_THRESHOLD; i++) {
+            bad.addWarning(ym);
+        }
+        userRepository.saveAndFlush(bad);
+
+        SchoolRankingResponse r = rankingService.school(RankingPeriod.THIS_YEAR);
+
+        assertEquals(1, r.podium().size());
+        assertEquals("에이대학교", r.podium().get(0).schoolName());
+        assertEquals(5, r.podium().get(0).memberCount());     // bad 제외 → 정상 5명만 분모
+        assertEquals(3 * H, r.podium().get(0).avgSeconds());  // bad(30h) 포함되면 평균이 왜곡되지만 제외돼 3h 그대로
+    }
+
+    @Test
+    @DisplayName("경고가 임계 미만이면 랭킹에 그대로 포함된다")
+    void underThresholdStillRanked() {
+        User a = user("a1", "김포함", 1, schoolA);
+        record(a, 10 * H);
+        int ym = StudyClock.studyMonthYm(Instant.now());
+        a.addWarning(ym); // 1회 — 임계(3) 미만
+        userRepository.saveAndFlush(a);
+
+        IndividualRankingResponse r = rankingService.individual(a.getId(), RankingPeriod.THIS_YEAR);
+        assertEquals(1, r.podium().size());
         assertTrue(r.myRank().isMe());
     }
 

@@ -26,6 +26,9 @@ public final class StudyTimePolicy {
     /** 주간 랭킹 캡: 주간 랭킹 합계 상한 (§3.6e 백스톱). */
     public static final Duration WEEKLY_CAP = Duration.ofHours(84);
 
+    /** 이 횟수 이상 경고가 누적되면 페널티(해당 기간 랭킹 제외) (§3.6c, 기본 3 — 관대하게). */
+    public static final int PENALTY_THRESHOLD = 3;
+
     public static long minSessionSeconds() { return MIN_SESSION.toSeconds(); }
     public static long dailyCapSeconds()   { return DAILY_CAP.toSeconds(); }
     public static long weeklyCapSeconds()  { return WEEKLY_CAP.toSeconds(); }

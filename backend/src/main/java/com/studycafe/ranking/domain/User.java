@@ -46,6 +46,18 @@ public class User {
     @Column(name = "created_at", updatable = false)
     private Instant createdAt;
 
+    /**
+     * 04:00 자동 마감 경고 누적 횟수(§3.6c). 리셋은 배치 없이 lazy 로 한다:
+     * warningPeriodYm 이 현재 스터디-월과 다르면 이 값은 무시되고(=0), 다음 적립 때 덮어쓴다.
+     * 무료 호스팅 슬립으로 리셋 배치가 걸러져도 조회가 늘 정확하도록(§8.7).
+     */
+    @Column(name = "warning_count", nullable = false)
+    private int warningCount = 0;
+
+    /** warningCount 가 속한 스터디-월(yyyymm, 예: 202607). 0 = 아직 경고 없음. */
+    @Column(name = "warning_period_ym", nullable = false)
+    private int warningPeriodYm = 0;
+
     protected User() {
     }
 
@@ -83,5 +95,28 @@ public class User {
 
     public Instant getCreatedAt() {
         return createdAt;
+    }
+
+    /** 이 스터디-월(currentYm)에 유효한 경고 수. 월이 바뀌었으면 0(lazy 리셋). */
+    public int effectiveWarnings(int currentYm) {
+        return warningPeriodYm == currentYm ? warningCount : 0;
+    }
+
+    /** 경고 1회 적립. 월이 바뀌었으면 새 월로 리셋하며 1부터 시작한다. */
+    public void addWarning(int currentYm) {
+        if (warningPeriodYm != currentYm) {
+            warningPeriodYm = currentYm;
+            warningCount = 1;
+        } else {
+            warningCount += 1;
+        }
+    }
+
+    public int getWarningCount() {
+        return warningCount;
+    }
+
+    public int getWarningPeriodYm() {
+        return warningPeriodYm;
     }
 }

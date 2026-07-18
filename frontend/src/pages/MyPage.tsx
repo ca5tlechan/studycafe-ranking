@@ -11,6 +11,7 @@ import {
   type Weekday,
 } from '../lib/api';
 import { CAFE_FALLBACK, fmtHM, fmtTime, studyTodayISO } from '../lib/format';
+import { useAuth } from '../lib/auth';
 
 const WEEKDAY_KO: Record<Weekday, string> = {
   MONDAY: '월',
@@ -113,6 +114,7 @@ function StudyBarChart({ data, unit, height, tickFormatter }: {
 }
 
 export default function MyPage() {
+  const { user } = useAuth();
   const today = studyTodayISO();
   const [todayY, todayM] = [Number(today.slice(0, 4)), Number(today.slice(5, 7))];
 
@@ -231,6 +233,24 @@ export default function MyPage() {
       </header>
 
       <div className="app-body">
+        {/* §3.6c — 04:00 자동 마감 경고/페널티 안내. 로딩·에러와 무관하게 항상 상단에 노출. */}
+        {user && user.warningCount > 0 && (
+          <div className={`warn-banner${user.penalized ? ' penalized' : ''}`} role="status">
+            {user.penalized ? (
+              <>
+                <b>경고 {user.warningCount}회</b> — 자동 마감이 반복돼 이번 기간 랭킹에서 제외됐어요.
+                {/* 경고는 스터디-월(04:00 기준) 단위로 리셋된다 — 1일 00:00~03:59 는 아직 전월이므로
+                    "매달 1일"이 아니라 "매달 1일 새벽 4시"가 실제 경계다(§3.6c). */}
+                매달 1일 새벽 4시에 초기화돼요.
+              </>
+            ) : (
+              <>
+                <b>경고 {user.warningCount}/{user.penaltyThreshold}</b> — 04:00 전에 체크아웃하거나
+                이후 다시 체크인하면 경고가 쌓이지 않아요.
+              </>
+            )}
+          </div>
+        )}
         {loading ? (
           <div className="center-msg">불러오는 중…</div>
         ) : allFailed ? (

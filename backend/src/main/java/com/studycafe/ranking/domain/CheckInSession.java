@@ -73,6 +73,15 @@ public class CheckInSession {
      * 이 메서드는 단일 스레드 컨텍스트(스케줄 배치 Phase 10 · 테스트)에서 사용한다.
      */
     public void close(Instant at) {
+        closeWith(at, SessionStatus.COMPLETED);
+    }
+
+    /** 04:00 배치에 의한 자동 종료(§3.6a). 정상 체크아웃과 구분해 AUTO_CLOSED 로 남긴다(경고 판정 근거). */
+    public void autoClose(Instant at) {
+        closeWith(at, SessionStatus.AUTO_CLOSED);
+    }
+
+    private void closeWith(Instant at, SessionStatus closedStatus) {
         if (this.status != SessionStatus.ACTIVE) {
             throw new IllegalStateException("활성 상태가 아닌 세션은 종료할 수 없습니다: " + this.status);
         }
@@ -80,7 +89,7 @@ public class CheckInSession {
             throw new IllegalArgumentException("체크아웃 시각이 체크인 시각보다 이릅니다.");
         }
         this.checkOutAt = at;
-        this.status = SessionStatus.COMPLETED;
+        this.status = closedStatus;
     }
 
     public Long getId() {
