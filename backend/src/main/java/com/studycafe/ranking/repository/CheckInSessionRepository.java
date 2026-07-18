@@ -41,8 +41,13 @@ public interface CheckInSessionRepository extends JpaRepository<CheckInSession, 
      * 같은 세션을 다시 조회하면, Hibernate 가 DB의 최신 값 대신 캐시의 stale 객체(checkOutAt=null)를
      * 돌려줘 검증 예외가 난다(실제로 재현해 확인함). clear() 는 User 엔티티도 detach 시키므로,
      * 경고 적립은 도메인 메서드(setter) 대신 UserRepository.addWarning() 벌크 업데이트로 한다.
+     * <p>{@code flushAutomatically = true} 도 명시한다: 이게 없어도(기본 false) 실제로는
+     * Hibernate 의 FlushModeType.AUTO 가 이 벌크 쿼리 실행 전에 dirty 엔티티(직전 세션의
+     * recompute() 가 만든 DailyStudyRecord 등)를 이미 자동 flush 하므로 유실은 재현되지
+     * 않았다 — 여러 유저를 한 배치 트랜잭션에서 처리하는 시나리오로 직접 확인함. 다만 이 안전성이
+     * Hibernate 내부 동작에 우연히 기대고 있어, Spring Data 레벨에서도 명시적으로 보장한다.
      */
-    @Modifying(clearAutomatically = true)
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("update CheckInSession s set s.checkOutAt = :at, "
             + "s.status = com.studycafe.ranking.domain.SessionStatus.AUTO_CLOSED "
             + "where s.id = :id and s.status = com.studycafe.ranking.domain.SessionStatus.ACTIVE")

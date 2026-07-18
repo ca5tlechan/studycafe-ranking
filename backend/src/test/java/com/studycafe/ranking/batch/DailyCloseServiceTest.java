@@ -130,6 +130,29 @@ class DailyCloseServiceTest {
     }
 
     @Test
+    @DisplayName("한 배치 실행에서 여러 유저를 처리해도 먼저 처리된 유저의 집계가 유실되지 않는다")
+    void multipleUsersInOneRun_earlierUsersRecordSurvives() {
+        // autoCloseIfActive 는 clearAutomatically=true 라 매 유저 처리마다 영속성 컨텍스트를 비운다.
+        // flushAutomatically 없이는 직전 유저의 recompute()(DailyStudyRecord.save(), 아직 미반영)가
+        // 다음 유저 처리의 clear() 에 휩쓸려 유실될 수 있다는 우려가 있어 실제로 검증한다.
+        User a = newUser("batch_multi_a");
+        User b = newUser("batch_multi_b");
+        activeSession(a, kst(8, 20, 0)); // 8일 20:00~9일 04:00 = 8시간
+        activeSession(b, kst(8, 21, 0)); // 8일 21:00~9일 04:00 = 7시간
+
+        int closed = dailyCloseService.closeOverdue(kst(9, 4, 0));
+
+        assertEquals(2, closed);
+        assertEquals(8 * H, recordRepository
+                .findByUserIdAndStudyDate(a.getId(), LocalDate.of(2026, 7, 8)).orElseThrow().getTotalSeconds());
+        assertEquals(7 * H, recordRepository
+                .findByUserIdAndStudyDate(b.getId(), LocalDate.of(2026, 7, 8)).orElseThrow().getTotalSeconds());
+        int ym = StudyClock.studyMonthYm(kst(9, 4, 0));
+        assertEquals(1, userRepository.findById(a.getId()).orElseThrow().effectiveWarnings(ym));
+        assertEquals(1, userRepository.findById(b.getId()).orElseThrow().effectiveWarnings(ym));
+    }
+
+    @Test
     @DisplayName("04:00 이후 체크인한 세션(오늘 세션)은 이번 배치의 마감 대상이 아니다")
     void doesNotCloseTodaysSession() {
         User u = newUser("batch_b");
