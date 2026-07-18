@@ -3,6 +3,7 @@ package com.studycafe.ranking.auth;
 import io.jsonwebtoken.JwtException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
+import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -14,13 +15,10 @@ import java.io.IOException;
 import java.util.List;
 
 /**
- * Authorization: Bearer &lt;token&gt; 를 검증해 SecurityContext 에 userId(principal)를 세팅한다.
+ * HttpOnly 인증 쿠키(scr_token)의 JWT 를 검증해 SecurityContext 에 userId(principal)를 세팅한다(이슈 #7).
  * 토큰이 없거나 유효하지 않으면 인증 없이 통과시키고, 보호된 엔드포인트에서 401 처리된다.
  */
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
-
-    private static final String HEADER = "Authorization";
-    private static final String PREFIX = "Bearer ";
 
     private final JwtTokenProvider tokenProvider;
 
@@ -31,9 +29,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
-        String header = request.getHeader(HEADER);
-        if (header != null && header.startsWith(PREFIX)) {
-            String token = header.substring(PREFIX.length());
+        String token = extractToken(request);
+        if (token != null) {
             try {
                 Long userId = tokenProvider.parseUserId(token);
                 var authentication =
@@ -46,5 +43,18 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             }
         }
         chain.doFilter(request, response);
+    }
+
+    private String extractToken(HttpServletRequest request) {
+        Cookie[] cookies = request.getCookies();
+        if (cookies == null) {
+            return null;
+        }
+        for (Cookie cookie : cookies) {
+            if (AuthCookieFactory.COOKIE_NAME.equals(cookie.getName())) {
+                return cookie.getValue();
+            }
+        }
+        return null;
     }
 }

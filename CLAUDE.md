@@ -49,7 +49,9 @@
 
 ### 백엔드
 - **[확정] Java + Spring Boot**, REST API
-- **[확정] 인증: JWT** (회원가입/로그인 시 토큰 발급, 보호된 엔드포인트는 JWT 필요)
+- **[확정] 인증: JWT** (로그인 시 토큰 발급, 보호된 엔드포인트는 JWT 필요)
+  - **[확정] 토큰 전달 = HttpOnly 쿠키**(`scr_token`, `SameSite=Strict`, 프로덕션 `Secure`). localStorage 저장·`Authorization: Bearer` 헤더는 XSS 토큰 탈취 위험이 있어 쓰지 않는다(이슈 #7). 프론트는 `credentials: 'include'`로 쿠키를 자동 전송.
+  - **CSRF**: `SameSite=Strict`가 크로스사이트 요청에 쿠키를 싣지 않으므로, **인증을 요구하는** 상태 변경 요청은 쿠키 없이 도달해 401이 된다(단일 오리진 배포 전제에서 별도 CSRF 토큰 미도입). 단 SameSite는 응답의 `Set-Cookie`(쿠키 삭제 포함) 적용까지 막지는 못하므로 **공개 상태변경 엔드포인트를 두면 안 된다** — 로그아웃도 인증을 요구해 강제 로그아웃 CSRF를 막는다. 오리진 분리 배포로 가면 `SameSite=None` + CSRF 토큰을 함께 도입해야 한다.
 - 의존성(초기): Spring Web, Spring Data JPA, Spring Security, Validation, PostgreSQL Driver
 - 스케줄러: Spring `@Scheduled` (04:00 자동 마감, 03:30 사전 알림 배치)
 - 에디터: **IntelliJ** (Claude Code JetBrains 플러그인 사용)
@@ -329,7 +331,8 @@ function maskName(name):
 
 ### 인증
 - `POST /api/auth/signup` — `{ loginId, password, displayName, schoolId? }`. 가입 시 같은 학교 동명이인이면 `name_seq` 부여(§3.3).
-- `POST /api/auth/login` — `{ loginId, password }` → JWT
+- `POST /api/auth/login` — `{ loginId, password }` → 200, JWT를 HttpOnly 쿠키(`scr_token`)로 Set-Cookie. 본문은 사용자 정보만(토큰 미포함).
+- `POST /api/auth/logout` — 인증 쿠키 제거(Max-Age=0) → 204.
 - `GET  /api/schools` — 회원가입용 학교 목록(검색/드롭다운)
 - `GET  /api/users/me` — 현재 사용자 정보(경고 수/페널티 상태 포함 가능)
 
