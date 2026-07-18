@@ -105,7 +105,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
     setLoadError(false);
     setReady(true);
-    const p = authApi.logout()
+    // 연속 로그아웃도 직렬화한다: 앞선 로그아웃 뒤에 체인으로 연결해, login 이 이 꼬리를 기다리면
+    // 모든 로그아웃의 Set-Cookie(Max-Age=0) 가 적용된 뒤에야 새 쿠키를 발급받는다.
+    // (마지막 것만 기다리면, 먼저 보낸 로그아웃의 삭제 응답이 재로그인 뒤 도착해 새 쿠키를 지운다.)
+    const previous = pendingLogout.current ?? Promise.resolve();
+    const p = previous
+      .catch(() => undefined)
+      .then(() => authApi.logout())
       .catch(() => { /* 만료/네트워크 실패 무시 */ })
       .finally(() => {
         if (pendingLogout.current === p) pendingLogout.current = null;
