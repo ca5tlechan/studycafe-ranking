@@ -1,8 +1,10 @@
 package com.studycafe.ranking.stats;
 
+import com.studycafe.ranking.auth.AuthCookieFactory;
 import com.studycafe.ranking.auth.JwtTokenProvider;
 import com.studycafe.ranking.domain.User;
 import com.studycafe.ranking.repository.UserRepository;
+import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -29,12 +31,12 @@ class MeStatsControllerMockMvcTest {
     @Autowired
     private JwtTokenProvider jwtTokenProvider;
 
-    private String bearer;
+    private Cookie authCookie;
 
     @BeforeEach
     void setUp() {
         User user = userRepository.save(new User("stats_mvc", "{noop}pw", "김엠통계", 1, null));
-        bearer = "Bearer " + jwtTokenProvider.createToken(user.getId());
+        authCookie = new Cookie(AuthCookieFactory.COOKIE_NAME, jwtTokenProvider.createToken(user.getId()));
     }
 
     @Test
@@ -50,7 +52,7 @@ class MeStatsControllerMockMvcTest {
     @Test
     @DisplayName("overview 인증 → 200 (기록 없으면 0)")
     void overview_authenticated() throws Exception {
-        mockMvc.perform(get("/api/me/stats/overview").header("Authorization", bearer))
+        mockMvc.perform(get("/api/me/stats/overview").cookie(authCookie))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.weekSeconds").value(0))
                 .andExpect(jsonPath("$.monthSeconds").value(0));
@@ -60,7 +62,7 @@ class MeStatsControllerMockMvcTest {
     @DisplayName("calendar 잘못된 month(13) → 400, ApiError 형식")
     void calendar_invalidMonth_returns400ApiError() throws Exception {
         mockMvc.perform(get("/api/me/stats/calendar")
-                        .header("Authorization", bearer)
+                        .cookie(authCookie)
                         .param("year", "2026")
                         .param("month", "13"))
                 .andExpect(status().isBadRequest())
@@ -71,7 +73,7 @@ class MeStatsControllerMockMvcTest {
     @Test
     @DisplayName("hourly-pattern → 24개 버킷")
     void hourlyPattern_returns24() throws Exception {
-        mockMvc.perform(get("/api/me/stats/hourly-pattern").header("Authorization", bearer))
+        mockMvc.perform(get("/api/me/stats/hourly-pattern").cookie(authCookie))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.pattern.length()").value(24));
     }

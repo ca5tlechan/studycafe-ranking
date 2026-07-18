@@ -2,7 +2,7 @@ import {
   createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode,
 } from 'react';
 import {
-  ApiError, authApi, getToken, setToken, setUnauthorizedHandler,
+  ApiError, authApi, bumpAuthEpoch, setUnauthorizedHandler,
   type SignupInput, type User,
 } from './api';
 import { AutoLoginFailedError } from './authErrors';
@@ -36,12 +36,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     bootstrapSeq.current = seq;
     const stale = () => bootstrapSeq.current !== seq;
 
-    if (!getToken()) {
-      setUser(null);
-      setLoadError(false);
-      setReady(true);
-      return;
-    }
+    // 쿠키는 JS 로 볼 수 없으니 로그인 여부를 미리 알 수 없다 — 항상 me() 로 확인한다.
     setReady(false);
     setLoadError(false);
     try {
@@ -51,9 +46,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch (err) {
       if (stale()) return;
       if (err instanceof ApiError && (err.status === 401 || err.status === 403)) {
-        setUser(null); // 만료/무효 토큰 정리는 api 계층이 이미 했다 → 로그인 화면으로
+        setUser(null); // 쿠키 없음/만료 → 로그인 화면으로
       } else {
-        setLoadError(true); // 네트워크/5xx 는 토큰 유지하고 재시도 가능하게
+        setLoadError(true); // 네트워크/5xx 는 재시도 가능하게
       }
     } finally {
       if (!stale()) setReady(true);
@@ -78,10 +73,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [invalidateBootstrap]);
 
   const login = async (loginId: string, password: string) => {
-    const res = await authApi.login(loginId, password);
-    invalidateBootstrap(); // 진행 중이던 이전 토큰 검증이 새 세션을 덮어쓰지 않도록
-    setToken(res.token);
-    setUser(res.user);
+    const me = await authApi.login(loginId, password); // 서버가 인증 쿠키를 내려준다
+    invalidateBootstrap(); // 진행 중이던 이전 검증이 새 세션을 덮어쓰지 않도록
+    bumpAuthEpoch();        // 늦게 도착할 이전 세션의 401 을 무시하도록(api 계층 가드)
+    setUser(me);
     setLoadError(false);
     setReady(true);
   };
@@ -97,7 +92,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = () => {
     invalidateBootstrap();
-    setToken(null);
+    bumpAuthEpoch();
+    void authApi.logout(); // 서버에 쿠키 제거 요청(실패해도 로컬 상태는 즉시 정리)
     setUser(null);
     setLoadError(false);
     setReady(true);

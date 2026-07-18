@@ -1,8 +1,10 @@
 package com.studycafe.ranking.session;
 
+import com.studycafe.ranking.auth.AuthCookieFactory;
 import com.studycafe.ranking.auth.JwtTokenProvider;
 import com.studycafe.ranking.domain.User;
 import com.studycafe.ranking.repository.UserRepository;
+import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -33,12 +35,12 @@ class SessionControllerMockMvcTest {
     @Autowired
     private JwtTokenProvider jwtTokenProvider;
 
-    private String bearer;
+    private Cookie authCookie;
 
     @BeforeEach
     void setUp() {
         User user = userRepository.save(new User("mvc_tester", "{noop}pw", "김엠", 1, null));
-        bearer = "Bearer " + jwtTokenProvider.createToken(user.getId());
+        authCookie = new Cookie(AuthCookieFactory.COOKIE_NAME, jwtTokenProvider.createToken(user.getId()));
     }
 
     @Test
@@ -51,7 +53,7 @@ class SessionControllerMockMvcTest {
     @Test
     @DisplayName("/current 인증 → 200 active:false")
     void current_authenticated_returnsInactive() throws Exception {
-        mockMvc.perform(get("/api/sessions/current").header("Authorization", bearer))
+        mockMvc.perform(get("/api/sessions/current").cookie(authCookie))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.active").value(false));
     }
@@ -60,7 +62,7 @@ class SessionControllerMockMvcTest {
     @DisplayName("toggle 빈 cafeToken → 400(@Valid)")
     void toggle_blankCafeToken_returns400() throws Exception {
         mockMvc.perform(post("/api/sessions/toggle")
-                        .header("Authorization", bearer)
+                        .cookie(authCookie)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"cafeToken\":\"\"}"))
                 .andExpect(status().isBadRequest())
@@ -71,7 +73,7 @@ class SessionControllerMockMvcTest {
     @DisplayName("toggle 잘못된 토큰 → 404")
     void toggle_invalidCafeToken_returns404() throws Exception {
         mockMvc.perform(post("/api/sessions/toggle")
-                        .header("Authorization", bearer)
+                        .cookie(authCookie)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"cafeToken\":\"NO_SUCH_TOKEN\"}"))
                 .andExpect(status().isNotFound())
@@ -81,12 +83,12 @@ class SessionControllerMockMvcTest {
     @Test
     @DisplayName("toggle 두 번 → CHECK_IN 후 CHECK_OUT")
     void toggle_checksInThenOut() throws Exception {
-        mockMvc.perform(post("/api/sessions/toggle").header("Authorization", bearer)
+        mockMvc.perform(post("/api/sessions/toggle").cookie(authCookie)
                         .contentType(MediaType.APPLICATION_JSON).content(PILOT_CAFE_BODY))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.action").value("CHECK_IN"));
 
-        mockMvc.perform(post("/api/sessions/toggle").header("Authorization", bearer)
+        mockMvc.perform(post("/api/sessions/toggle").cookie(authCookie)
                         .contentType(MediaType.APPLICATION_JSON).content(PILOT_CAFE_BODY))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.action").value("CHECK_OUT"));

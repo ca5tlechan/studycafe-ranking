@@ -19,5 +19,7 @@ app:
     # 커밋된 기본 시크릿은 프로덕션 오설정 시 토큰 위조 위험이 있어 두지 않는다.
     secret: ${JWT_SECRET}
     expiration-ms: ${JWT_EXPIRATION_MS:604800000}   # 7일
+    # 인증 쿠키 Secure 속성. 프로덕션(HTTPS)은 true. 로컬 http 검증 시에만 JWT_COOKIE_SECURE=false.
+    cookie-secure: ${JWT_COOKIE_SECURE:true}
 
 # 실제 시크릿(JWT 등)은 여기 리터럴로 넣지 말 것. 환경변수(${...}) 또는 .env / application-local.yml(gitignore됨)로 주입.

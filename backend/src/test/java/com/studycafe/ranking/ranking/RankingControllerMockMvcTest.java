@@ -1,8 +1,10 @@
 package com.studycafe.ranking.ranking;
 
+import com.studycafe.ranking.auth.AuthCookieFactory;
 import com.studycafe.ranking.auth.JwtTokenProvider;
 import com.studycafe.ranking.domain.User;
 import com.studycafe.ranking.repository.UserRepository;
+import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -29,12 +31,12 @@ class RankingControllerMockMvcTest {
     @Autowired
     private JwtTokenProvider jwtTokenProvider;
 
-    private String bearer;
+    private Cookie authCookie;
 
     @BeforeEach
     void setUp() {
         User user = userRepository.save(new User("rank_mvc", "{noop}pw", "김랭", 1, null));
-        bearer = "Bearer " + jwtTokenProvider.createToken(user.getId());
+        authCookie = new Cookie(AuthCookieFactory.COOKIE_NAME, jwtTokenProvider.createToken(user.getId()));
     }
 
     @Test
@@ -48,7 +50,7 @@ class RankingControllerMockMvcTest {
     @Test
     @DisplayName("individual 인증 → 200, period 기본 this_week")
     void individual_ok_defaultPeriod() throws Exception {
-        mockMvc.perform(get("/api/rankings/individual").header("Authorization", bearer))
+        mockMvc.perform(get("/api/rankings/individual").cookie(authCookie))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.period").value("this_week"));
     }
@@ -57,7 +59,7 @@ class RankingControllerMockMvcTest {
     @DisplayName("잘못된 period → 400")
     void invalidPeriod_returns400() throws Exception {
         mockMvc.perform(get("/api/rankings/individual")
-                        .header("Authorization", bearer)
+                        .cookie(authCookie)
                         .param("period", "nope"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.status").value(400));
@@ -66,7 +68,7 @@ class RankingControllerMockMvcTest {
     @Test
     @DisplayName("우리학교: 무소속 유저 → available=false")
     void schoolMine_noSchool_unavailable() throws Exception {
-        mockMvc.perform(get("/api/rankings/school/mine").header("Authorization", bearer))
+        mockMvc.perform(get("/api/rankings/school/mine").cookie(authCookie))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.available").value(false));
     }

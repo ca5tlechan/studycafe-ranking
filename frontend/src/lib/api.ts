@@ -21,11 +21,6 @@ export interface User {
   penaltyThreshold: number;
 }
 
-export interface LoginResponse {
-  token: string;
-  tokenType: string;
-  user: User;
-}
 
 export interface CurrentSession {
   active: boolean;
@@ -131,12 +126,8 @@ export interface ApiErrorBody {
   fieldErrors?: Record<string, string>;
 }
 
-const TOKEN_KEY = 'scr.token';
-export const getToken = (): string | null => localStorage.getItem(TOKEN_KEY);
-export const setToken = (token: string | null): void => {
-  if (token) localStorage.setItem(TOKEN_KEY, token);
-  else localStorage.removeItem(TOKEN_KEY);
-};
+// 인증은 서버가 내려주는 HttpOnly 쿠키(scr_token)로 한다(이슈 #7). JS 는 토큰을 보관하지 않는다.
+// 쿠키는 credentials:'include' 로 브라우저가 자동 전송한다.
 
 type UnauthorizedHandler = () => void;
 let unauthorizedHandler: UnauthorizedHandler | null = null;
@@ -144,6 +135,16 @@ let unauthorizedHandler: UnauthorizedHandler | null = null;
 /** 인증 만료(401/403)를 앱 전역에서 한 번에 처리하기 위한 훅. AuthProvider 가 등록한다. */
 export const setUnauthorizedHandler = (handler: UnauthorizedHandler | null): void => {
   unauthorizedHandler = handler;
+};
+
+/**
+ * 인증 상태 세대. 로그인/로그아웃 시 올린다. 토큰을 JS 로 볼 수 없으니, 예전의 "보낸 토큰이
+ * 아직 그대로일 때만 정리" 가드를 세대 비교로 대신한다: 요청 시작 시점의 세대와 응답 시점의
+ * 세대가 같을 때만 만료 처리해, 로그인 직후 도착한 이전 세션의 401 이 새 세션을 지우지 않게 한다.
+ */
+let authEpoch = 0;
+export const bumpAuthEpoch = (): void => {
+  authEpoch += 1;
 };
 
 export class ApiError extends Error {
@@ -157,21 +158,23 @@ export class ApiError extends Error {
 }
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const token = getToken();
+  const epoch = authEpoch;
   const res = await fetch('/api' + path, {
     ...options,
+    credentials: 'include', // HttpOnly 인증 쿠키를 함께 보낸다
     headers: {
       'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...options.headers,
     },
   });
-  // 토큰을 실어 보낸 요청이 401/403이면 세션 만료로 간주하고 인증 상태를 정리한다.
-  // (로그인 실패의 401은 토큰 없이 보낸 요청이라 여기 해당하지 않는다.)
-  // 응답이 늦게 오는 사이 다른 토큰으로 로그인했을 수 있으므로, 보낸 토큰이 아직 그대로일 때만 정리한다.
-  // 그러지 않으면 만료 토큰의 뒤늦은 401이 방금 발급받은 세션을 지운다.
-  if (token && (res.status === 401 || res.status === 403) && getToken() === token) {
-    setToken(null);
+  // 인증이 필요한 요청이 401/403이면 세션 만료로 보고 전역 처리한다.
+  // - /auth/* 의 401(로그인 실패 등)은 자격 증명 문제이지 세션 만료가 아니므로 제외한다.
+  // - 요청 시작 이후 로그인/로그아웃이 있었으면(세대 변경) 이 응답은 옛 세션의 것이므로 무시한다.
+  if (
+    (res.status === 401 || res.status === 403)
+    && !path.startsWith('/auth/')
+    && epoch === authEpoch
+  ) {
     unauthorizedHandler?.();
   }
   const text = await res.text();
@@ -181,13 +184,15 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 }
 
 export const authApi = {
+  /** 성공 시 서버가 인증 쿠키를 Set-Cookie 로 내려주고, 본문엔 사용자 정보만 온다. */
   login: (loginId: string, password: string) =>
-    request<LoginResponse>('/auth/login', {
+    request<User>('/auth/login', {
       method: 'POST',
       body: JSON.stringify({ loginId, password }),
     }),
   signup: (input: SignupInput) =>
     request<User>('/auth/signup', { method: 'POST', body: JSON.stringify(input) }),
+  logout: () => request<void>('/auth/logout', { method: 'POST' }),
   me: () => request<User>('/users/me'),
   schools: () => request<School[]>('/schools'),
 };

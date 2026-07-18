@@ -26,12 +26,16 @@ public class SecurityConfig {
                                                    JwtTokenProvider tokenProvider,
                                                    RestAuthenticationEntryPoint authenticationEntryPoint) throws Exception {
         http
+                // CSRF 토큰 미사용: 인증 쿠키가 SameSite=Strict 라 크로스사이트 요청엔 쿠키가 실리지
+                // 않아 CSRF 가 구조적으로 차단된다(AuthCookieFactory 참고). 오리진 분리 배포로 가면
+                // SameSite=None + CSRF 토큰을 함께 도입해야 한다(이슈 #7).
                 .csrf(AbstractHttpConfigurer::disable)
                 .httpBasic(AbstractHttpConfigurer::disable)
                 .formLogin(AbstractHttpConfigurer::disable)
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(HttpMethod.POST, "/api/auth/signup", "/api/auth/login").permitAll()
+                        .requestMatchers(HttpMethod.POST,
+                                "/api/auth/signup", "/api/auth/login", "/api/auth/logout").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/schools").permitAll()
                         .anyRequest().authenticated())
                 .exceptionHandling(eh -> eh.authenticationEntryPoint(authenticationEntryPoint))
