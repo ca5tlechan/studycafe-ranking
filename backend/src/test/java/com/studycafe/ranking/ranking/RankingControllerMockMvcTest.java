@@ -48,6 +48,14 @@ class RankingControllerMockMvcTest {
     }
 
     @Test
+    @DisplayName("쿠키 없이 Authorization: Bearer 만 → 401 (구 헤더 인증 재도입 감지)")
+    void bearerHeaderWithoutCookie_rejected() throws Exception {
+        mockMvc.perform(get("/api/rankings/individual")
+                        .header("Authorization", "Bearer " + authCookie.getValue()))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
     @DisplayName("individual 인증 → 200, period 기본 this_week")
     void individual_ok_defaultPeriod() throws Exception {
         mockMvc.perform(get("/api/rankings/individual").cookie(authCookie))

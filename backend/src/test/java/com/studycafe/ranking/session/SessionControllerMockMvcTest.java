@@ -51,6 +51,14 @@ class SessionControllerMockMvcTest {
     }
 
     @Test
+    @DisplayName("쿠키 없이 Authorization: Bearer 만 → 401 (구 헤더 인증 재도입 감지)")
+    void bearerHeaderWithoutCookie_rejected() throws Exception {
+        mockMvc.perform(get("/api/sessions/current")
+                        .header("Authorization", "Bearer " + authCookie.getValue()))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
     @DisplayName("/current 인증 → 200 active:false")
     void current_authenticated_returnsInactive() throws Exception {
         mockMvc.perform(get("/api/sessions/current").cookie(authCookie))

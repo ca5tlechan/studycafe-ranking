@@ -46,7 +46,11 @@ public class AuthController {
                 .body(res.user());
     }
 
-    /** 인증 쿠키를 제거한다. 토큰이 이미 만료됐어도 호출 가능(permitAll). */
+    /**
+     * 인증 쿠키를 제거한다. 인증 필요(SecurityConfig) — 공개면 외부 form POST 로 강제 로그아웃 CSRF 가
+     * 가능하다. SameSite=Strict 라 크로스사이트 요청엔 쿠키가 실리지 않아, 공격자의 로그아웃 요청은
+     * 인증 없이 도달해 401 이 되고 쿠키가 지워지지 않는다.
+     */
     @PostMapping("/logout")
     public ResponseEntity<Void> logout() {
         ResponseCookie cookie = authCookieFactory.clear();

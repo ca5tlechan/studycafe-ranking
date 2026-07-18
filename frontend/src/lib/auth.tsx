@@ -13,7 +13,7 @@ interface AuthContextValue {
   loadError: boolean;   // 네트워크/서버 오류로 검증 실패 (토큰 유지, 재시도 가능)
   login: (loginId: string, password: string) => Promise<void>;
   signup: (input: SignupInput) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
   retry: () => void;
 }
 
@@ -30,6 +30,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const invalidateBootstrap = useCallback(() => {
     bootstrapSeq.current += 1;
   }, []);
+
+  // 진행 중인 로그아웃 요청. 로그아웃의 Set-Cookie(Max-Age=0)가 뒤늦게 도착해 새 로그인 쿠키를
+  // 지우지 않도록, 로그인은 이 요청이 끝난(=쿠키 삭제가 적용된) 뒤에 진행한다.
+  const pendingLogout = useRef<Promise<void> | null>(null);
 
   const bootstrap = useCallback(async () => {
     const seq = bootstrapSeq.current + 1;
@@ -73,6 +77,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [invalidateBootstrap]);
 
   const login = async (loginId: string, password: string) => {
+    // 진행 중인 로그아웃이 있으면 그 쿠키 삭제가 적용된 뒤에 로그인해야, 늦게 온 Max-Age=0 이
+    // 방금 발급받은 쿠키를 지우지 않는다.
+    if (pendingLogout.current) await pendingLogout.current;
     const me = await authApi.login(loginId, password); // 서버가 인증 쿠키를 내려준다
     invalidateBootstrap(); // 진행 중이던 이전 검증이 새 세션을 덮어쓰지 않도록
     bumpAuthEpoch();        // 늦게 도착할 이전 세션의 401 을 무시하도록(api 계층 가드)
@@ -90,13 +97,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const logout = () => {
+  const logout = (): Promise<void> => {
     invalidateBootstrap();
     bumpAuthEpoch();
-    void authApi.logout(); // 서버에 쿠키 제거 요청(실패해도 로컬 상태는 즉시 정리)
+    // 로컬 상태는 즉시 정리(응답을 기다리지 않고 화면 전환). 만료 토큰이면 서버가 401 이지만
+    // 그 쿠키는 이미 무효라 무시해도 된다(로그아웃은 /auth/* 라 전역 401 핸들러도 타지 않는다).
     setUser(null);
     setLoadError(false);
     setReady(true);
+    const p = authApi.logout()
+      .catch(() => { /* 만료/네트워크 실패 무시 */ })
+      .finally(() => {
+        if (pendingLogout.current === p) pendingLogout.current = null;
+      });
+    pendingLogout.current = p;
+    return p;
   };
 
   return (
