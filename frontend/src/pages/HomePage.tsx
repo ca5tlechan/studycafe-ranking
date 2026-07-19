@@ -40,9 +40,12 @@ export default function HomePage() {
           <div className="hi">안녕하세요,</div>
           <h1>{user?.displayName}님</h1>
         </div>
-        <button className="btn ghost" style={{ padding: '8px 13px', fontSize: 13 }} onClick={logout}>
-          로그아웃
-        </button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          {user?.role === 'ADMIN' && (
+            <Link className="btn ghost sm" to="/admin">관리자</Link>
+          )}
+          <button className="btn ghost sm" onClick={logout}>로그아웃</button>
+        </div>
       </header>
 
       <div className="app-body">

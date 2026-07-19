@@ -4,3 +4,5 @@ import { lazy } from 'react';
 // (html5-qrcode·recharts 를 첫 로딩에 포함하면 번들이 3배가 된다 — 폰에서 쓰는 PWA다.)
 export const CheckInPage = lazy(() => import('./CheckInPage'));
 export const MyPage = lazy(() => import('./MyPage'));
+// 관리자 화면은 운영자만 쓰므로 첫 로딩에 넣지 않는다.
+export const AdminPage = lazy(() => import('./AdminPage'));
