@@ -12,6 +12,7 @@ import {
 } from '../lib/api';
 import { CAFE_FALLBACK, fmtHM, fmtTime, studyTodayISO } from '../lib/format';
 import { useAuth } from '../lib/auth';
+import PushToggle from '../components/PushToggle';
 
 const WEEKDAY_KO: Record<Weekday, string> = {
   MONDAY: '월',
@@ -251,6 +252,8 @@ export default function MyPage() {
             )}
           </div>
         )}
+        {/* 03:30 마감 알림 토글(§3.6b). 지원/활성 안 되면 스스로 숨는다 — 로딩/에러와 독립. */}
+        <PushToggle />
         {loading ? (
           <div className="center-msg">불러오는 중…</div>
         ) : allFailed ? (
