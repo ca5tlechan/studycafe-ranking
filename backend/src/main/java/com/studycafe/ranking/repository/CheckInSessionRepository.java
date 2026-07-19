@@ -21,6 +21,13 @@ public interface CheckInSessionRepository extends JpaRepository<CheckInSession, 
     @Query("select s from CheckInSession s join fetch s.user where s.status = :status")
     List<CheckInSession> findAllByStatus(@Param("status") SessionStatus status);
 
+    /** 사용자 삭제 시 세션 정리(연쇄). */
+    void deleteByUserId(Long userId);
+
+    /** 관리자 목록에서 현재 체크인(ACTIVE) 사용자 표시용 — userId 집합. */
+    @Query("select s.user.id from CheckInSession s where s.status = :status")
+    List<Long> findUserIdsByStatus(@Param("status") SessionStatus status);
+
     /**
      * ACTIVE 세션을 원자적으로 체크아웃(WHERE status=ACTIVE). 동시 더블탭 체크아웃 시 둘째는 0건 → 멱등.
      * clearAutomatically: 벌크 update 후 영속성 컨텍스트를 비워 재조회가 최신값을 읽게 한다.
@@ -52,6 +59,18 @@ public interface CheckInSessionRepository extends JpaRepository<CheckInSession, 
             + "s.status = com.studycafe.ranking.domain.SessionStatus.AUTO_CLOSED "
             + "where s.id = :id and s.status = com.studycafe.ranking.domain.SessionStatus.ACTIVE")
     int autoCloseIfActive(@Param("id") Long id, @Param("at") Instant at);
+
+    /** 관리자 강제 종료(오류 복구). autoCloseIfActive 와 동일 패턴, 상태만 FORCE_CLOSED. */
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("update CheckInSession s set s.checkOutAt = :at, "
+            + "s.status = com.studycafe.ranking.domain.SessionStatus.FORCE_CLOSED "
+            + "where s.id = :id and s.status = com.studycafe.ranking.domain.SessionStatus.ACTIVE")
+    int forceCloseIfActive(@Param("id") Long id, @Param("at") Instant at);
+
+    /** 관리자 강제 종료 대상 조회 — 사용자의 ACTIVE 세션. */
+    @Query("select s from CheckInSession s where s.user.id = :userId "
+            + "and s.status = com.studycafe.ranking.domain.SessionStatus.ACTIVE")
+    Optional<CheckInSession> findActiveByUserId(@Param("userId") Long userId);
 
     /** current 표시용 — 카페까지 fetch. */
     @Query("select s from CheckInSession s join fetch s.cafe where s.user.id = :userId and s.status = :status")
