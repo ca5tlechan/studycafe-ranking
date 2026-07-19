@@ -40,6 +40,8 @@ class WebPushEndpointValidatorTest {
             "https://017700000001/x",           // 우회: 8진 = 127.0.0.1
             "https://127.1/x",                  // 우회: 축약 = 127.0.0.1
             "https://0177.0.0.1/x",             // 우회: 선행 0 옥텟
+            "https://localhost./x",             // 우회: FQDN 끝 점 = localhost
+            "https://127.0.0.1./x",             // 우회: FQDN 끝 점 = 127.0.0.1
             "not a url",                        // 형식 오류
     })
     void rejectsNonHttpsOrInternalEndpoints(String endpoint) {

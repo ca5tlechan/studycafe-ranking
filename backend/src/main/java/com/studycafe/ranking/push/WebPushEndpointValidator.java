@@ -38,6 +38,14 @@ public final class WebPushEndpointValidator {
             throw new InvalidPushEndpointException("구독 주소에 호스트가 없습니다.");
         }
         String bareHost = host.startsWith("[") && host.endsWith("]") ? host.substring(1, host.length() - 1) : host;
+        // FQDN 끝 점 제거: "localhost." / "127.0.0.1." 는 끝 점 때문에 로컬/숫자 판정을 빠져나가지만
+        // 플랫폼 resolver 는 loopback 으로 해석한다 — 정규화해서 일관되게 판정한다.
+        while (bareHost.endsWith(".")) {
+            bareHost = bareHost.substring(0, bareHost.length() - 1);
+        }
+        if (bareHost.isBlank()) {
+            throw new InvalidPushEndpointException("구독 주소에 호스트가 없습니다.");
+        }
         String lower = bareHost.toLowerCase();
         if (lower.equals("localhost") || lower.endsWith(".localhost") || lower.endsWith(".local")) {
             throw new InvalidPushEndpointException("허용되지 않는 구독 주소입니다.");
