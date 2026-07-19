@@ -2,11 +2,16 @@ package com.studycafe.ranking.push;
 
 import org.junit.jupiter.api.Test;
 
+import javax.crypto.Cipher;
+import javax.crypto.spec.GCMParameterSpec;
+import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
 import java.security.KeyPair;
+import java.util.Arrays;
 import java.util.Base64;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * RFC 8291 §5 "Push Message Encryption Example" 테스트 벡터로 암호화 정확성을 바이트 단위로 증명한다.
@@ -45,7 +50,7 @@ class WebPushCryptoTest {
     }
 
     @Test
-    void encryptedBodyHasCorrectAes128gcmHeaderAndRoundTrips() throws Exception {
+    void encryptedBodyHasCorrectAes128gcmHeaderAndDecryptsBackToPlaintext() throws Exception {
         KeyPair asKeyPair = new KeyPair(WebPushCrypto.toPublicKey(AS_PUBLIC), WebPushCrypto.toPrivateKey(AS_PRIVATE));
 
         byte[] body = crypto.encrypt(PLAINTEXT.getBytes(StandardCharsets.UTF_8), UA_PUBLIC, AUTH_SECRET, asKeyPair, SALT);
@@ -53,9 +58,31 @@ class WebPushCryptoTest {
         // RFC 8188 헤더: salt(16) || rs(4 BE) || idlen(1) || keyid(as_public 65) || ciphertext
         // plaintext 41 + delim 1 = content 42, + GCM tag 16 = ciphertext 58 → 총 16+4+1+65+58 = 144
         assertThat(body).hasSize(144);
-        assertThat(java.util.Arrays.copyOfRange(body, 0, 16)).isEqualTo(SALT);
-        assertThat(java.util.Arrays.copyOfRange(body, 16, 20)).isEqualTo(new byte[] { 0x00, 0x00, 0x10, 0x00 }); // rs=4096
+        assertThat(Arrays.copyOfRange(body, 0, 16)).isEqualTo(SALT);
+        assertThat(Arrays.copyOfRange(body, 16, 20)).isEqualTo(new byte[] { 0x00, 0x00, 0x10, 0x00 }); // rs=4096
         assertThat(body[20]).isEqualTo((byte) 65); // idlen
-        assertThat(java.util.Arrays.copyOfRange(body, 21, 86)).isEqualTo(AS_PUBLIC); // keyid
+        assertThat(Arrays.copyOfRange(body, 21, 86)).isEqualTo(AS_PUBLIC); // keyid
+
+        // 헤더뿐 아니라 암호문/구분자/GCM 태그까지 검증한다: 독립적으로 복호화해 원문이 복원되는지.
+        // (RFC 벡터 body 문자열을 그대로 비교하지 않는 이유 — 그건 전사 오류에 취약하다. CEK/NONCE 는
+        //  이미 위 테스트에서 RFC 값과 대조되고, 여기서 delim·프레이밍·태그 회귀를 복호화로 잡는다.)
+        byte[] ecdhSecret = WebPushCrypto.ecdh(WebPushCrypto.toPrivateKey(AS_PRIVATE),
+                WebPushCrypto.toPublicKey(UA_PUBLIC));
+        WebPushCrypto.DerivedKeys keys = crypto.deriveKeys(ecdhSecret, AUTH_SECRET, SALT, UA_PUBLIC, AS_PUBLIC);
+        Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
+        cipher.init(Cipher.DECRYPT_MODE, new SecretKeySpec(keys.cek(), "AES"), new GCMParameterSpec(128, keys.nonce()));
+        byte[] content = cipher.doFinal(Arrays.copyOfRange(body, 86, body.length));
+
+        assertThat(content[content.length - 1]).isEqualTo((byte) 0x02); // 마지막-레코드 구분자
+        assertThat(new String(Arrays.copyOf(content, content.length - 1), StandardCharsets.UTF_8)).isEqualTo(PLAINTEXT);
+    }
+
+    @Test
+    void rejectsPlaintextExceedingSingleRecordLimit() {
+        KeyPair asKeyPair = new KeyPair(WebPushCrypto.toPublicKey(AS_PUBLIC), WebPushCrypto.toPrivateKey(AS_PRIVATE));
+        byte[] tooBig = new byte[4096 - 17 + 1]; // MAX_PLAINTEXT + 1
+
+        assertThatThrownBy(() -> crypto.encrypt(tooBig, UA_PUBLIC, AUTH_SECRET, asKeyPair, SALT))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 }

@@ -13,12 +13,8 @@ public class NoopWebPushSender implements WebPushSender {
 
     @Override
     public Result send(PushSubscription subscription, String payloadJson) {
-        log.info("[push:noop] VAPID 미설정 — 전송 생략(userId={}, endpoint 앞부분={})",
-                subscription.getUser().getId(), abbreviate(subscription.getEndpoint()));
+        // endpoint 는 사용자별 capability URL 이라 로그에 남기지 않는다 — 진단엔 userId 로 충분.
+        log.info("[push:noop] VAPID 미설정 — 전송 생략(userId={})", subscription.getUser().getId());
         return Result.OK;
-    }
-
-    private static String abbreviate(String s) {
-        return s.length() <= 40 ? s : s.substring(0, 40) + "…";
     }
 }

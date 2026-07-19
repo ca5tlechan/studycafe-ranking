@@ -7,6 +7,7 @@ import com.studycafe.ranking.common.exception.DuplicateLoginIdException;
 import com.studycafe.ranking.common.exception.DuplicateSchoolNameException;
 import com.studycafe.ranking.common.exception.InvalidCafeTokenException;
 import com.studycafe.ranking.common.exception.InvalidCredentialsException;
+import com.studycafe.ranking.common.exception.InvalidPushEndpointException;
 import com.studycafe.ranking.common.exception.SchoolNotFoundException;
 import com.studycafe.ranking.common.exception.UserNotFoundException;
 import org.slf4j.Logger;
@@ -57,8 +58,8 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return build(HttpStatus.CONFLICT, e.getMessage());
     }
 
-    @ExceptionHandler(AdminRuleViolationException.class)
-    public ResponseEntity<ApiError> handleAdminRule(AdminRuleViolationException e) {
+    @ExceptionHandler({AdminRuleViolationException.class, InvalidPushEndpointException.class})
+    public ResponseEntity<ApiError> handleBadRequest(RuntimeException e) {
         return build(HttpStatus.BAD_REQUEST, e.getMessage());
     }
 

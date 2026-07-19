@@ -46,6 +46,6 @@ public class PushController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void unsubscribe(@AuthenticationPrincipal Long userId,
                             @Valid @RequestBody UnsubscribeRequest request) {
-        pushService.unsubscribe(request.endpoint());
+        pushService.unsubscribe(userId, request.endpoint());
     }
 }

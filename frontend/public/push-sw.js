@@ -25,14 +25,17 @@ self.addEventListener('notificationclick', (event) => {
   const target = (event.notification.data && event.notification.data.url) || '/';
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
-      // 이미 앱 창이 열려 있으면 그 창을 포커스하고 해당 경로로 이동.
+      // 이미 앱 창이 열려 있으면 그 창을 해당 경로로 이동시킨 뒤 포커스한다.
+      // focus/navigate 프로미스를 반환해야 waitUntil 이 완료까지 SW 를 살려둔다(안 그러면 간헐 누락).
       for (const client of clientList) {
         if ('focus' in client) {
-          client.focus();
           if ('navigate' in client) {
-            client.navigate(target).catch(() => {});
+            return client
+              .navigate(target)
+              .then((navigated) => (navigated || client).focus())
+              .catch(() => client.focus());
           }
-          return undefined;
+          return client.focus();
         }
       }
       // 열린 창이 없으면 새로 연다.

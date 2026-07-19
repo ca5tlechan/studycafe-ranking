@@ -40,19 +40,26 @@ export async function enablePush(vapidPublicKey: string): Promise<boolean> {
   }
   if (permission !== 'granted') return false;
 
-  const reg = await navigator.serviceWorker.ready;
-  // 기존 구독이 있으면 재사용, 없으면 새로 만든다.
-  const sub =
-    (await reg.pushManager.getSubscription()) ??
-    (await reg.pushManager.subscribe({
-      userVisibleOnly: true,
-      applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
-    }));
+  // 구독 생성/서버 저장의 모든 실패를 여기서 삼켜 false 로 돌린다. 안 그러면 pushManager.subscribe
+  // (권한 경합·applicationServerKey 불일치) 나 pushApi.subscribe(네트워크/서버 오류) 예외가
+  // 호출부(PushToggle)로 전파돼, "브라우저는 구독됐는데 서버는 모르는" 상태가 조용히 남는다.
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    // 기존 구독이 있으면 재사용, 없으면 새로 만든다.
+    const sub =
+      (await reg.pushManager.getSubscription()) ??
+      (await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
+      }));
 
-  const { endpoint, keys } = sub.toJSON();
-  if (!endpoint || !keys?.p256dh || !keys.auth) return false;
-  await pushApi.subscribe({ endpoint, keys: { p256dh: keys.p256dh, auth: keys.auth } });
-  return true;
+    const { endpoint, keys } = sub.toJSON();
+    if (!endpoint || !keys?.p256dh || !keys.auth) return false;
+    await pushApi.subscribe({ endpoint, keys: { p256dh: keys.p256dh, auth: keys.auth } });
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /** 알림을 끈다: 브라우저 구독 해지 + 서버에서 제거. 서버 제거는 실패해도 배치가 410 으로 정리한다. */

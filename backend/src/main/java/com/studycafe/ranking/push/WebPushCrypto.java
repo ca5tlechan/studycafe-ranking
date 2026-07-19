@@ -36,6 +36,12 @@ public final class WebPushCrypto {
 
     /** RFC 8188 record size. 단일 레코드라 payload 보다 크기만 하면 된다. */
     private static final int RECORD_SIZE = 4096;
+    /**
+     * 단일 레코드로 담을 수 있는 원문 최대 길이. 암호화 레코드 = 원문 + 1(구분자 0x02) + 16(GCM 태그)
+     * 이고 이 길이가 RECORD_SIZE 를 넘으면 수신자가 레코드 경계를 잘못 읽어 복호화에 실패한다(RFC 8188).
+     * 우리 알림 문구는 수백 바이트라 실제로 걸리지 않지만, 넘으면 조용히 깨지는 대신 명시적으로 거부한다.
+     */
+    private static final int MAX_PLAINTEXT = RECORD_SIZE - 17;
 
     private static final byte[] KEY_INFO_PREFIX = "WebPush: info\0".getBytes(StandardCharsets.US_ASCII);
     private static final byte[] CEK_INFO = "Content-Encoding: aes128gcm\0".getBytes(StandardCharsets.US_ASCII);
@@ -75,6 +81,10 @@ public final class WebPushCrypto {
      */
     byte[] encrypt(byte[] plaintext, byte[] uaPublicRaw, byte[] authSecret,
                    KeyPair asKeyPair, byte[] salt) {
+        if (plaintext.length > MAX_PLAINTEXT) {
+            throw new IllegalArgumentException(
+                    "푸시 원문이 단일 레코드 한도(" + MAX_PLAINTEXT + "바이트)를 초과했습니다: " + plaintext.length);
+        }
         try {
             ECPublicKey uaPublic = toPublicKey(uaPublicRaw);
             byte[] asPublicRaw = toRawPublic((ECPublicKey) asKeyPair.getPublic());

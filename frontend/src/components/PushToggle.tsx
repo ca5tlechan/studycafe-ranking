@@ -57,6 +57,10 @@ export default function PushToggle() {
         // 권한을 거부하면 브라우저가 더는 프롬프트를 띄우지 않는다 — 상태로 안내를 바꾼다.
         setState(ok ? 'on' : Notification.permission === 'denied' ? 'denied' : 'off');
       }
+    } catch {
+      // disablePush 등에서 예외가 나도 UI 가 멈추지 않게 — 현재 구독 상태를 다시 읽어 반영한다.
+      const sub = await currentSubscription().catch(() => null);
+      setState(sub ? 'on' : 'off');
     } finally {
       setBusy(false);
     }

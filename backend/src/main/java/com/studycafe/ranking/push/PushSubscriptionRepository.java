@@ -17,8 +17,11 @@ public interface PushSubscriptionRepository extends JpaRepository<PushSubscripti
     @Query("select s from PushSubscription s where s.user.id in :userIds")
     List<PushSubscription> findByUserIdIn(@Param("userIds") Collection<Long> userIds);
 
-    /** 죽은 구독(404/410) 정리. */
+    /** 죽은 구독(404/410) 정리 — 푸시 서비스가 만료를 확정한 endpoint 라 소유자 무관하게 제거. */
     void deleteByEndpoint(String endpoint);
+
+    /** 사용자 본인 구독 해지 — 소유자 범위로 제한해 남의 구독을 못 지우게 한다(§6). */
+    void deleteByUserIdAndEndpoint(Long userId, String endpoint);
 
     /** 사용자 삭제 시 연쇄 정리(FK). */
     void deleteByUserId(Long userId);
