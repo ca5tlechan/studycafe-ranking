@@ -1,5 +1,6 @@
 package com.studycafe.ranking.user.dto;
 
+import com.studycafe.ranking.domain.Role;
 import com.studycafe.ranking.domain.School;
 import com.studycafe.ranking.domain.User;
 import com.studycafe.ranking.studytime.StudyClock;
@@ -21,7 +22,8 @@ public record UserResponse(
         String schoolName,
         int warningCount,
         boolean penalized,
-        int penaltyThreshold
+        int penaltyThreshold,
+        Role role
 ) {
     /** 주의: user.getSchool() 접근이 있으므로 트랜잭션(또는 school fetch된) 컨텍스트에서 호출할 것. */
     public static UserResponse from(User user) {
@@ -37,7 +39,8 @@ public record UserResponse(
                 school != null ? school.getName() : null,
                 warnings,
                 warnings >= StudyTimePolicy.PENALTY_THRESHOLD,
-                StudyTimePolicy.PENALTY_THRESHOLD
+                StudyTimePolicy.PENALTY_THRESHOLD,
+                user.getRole()
         );
     }
 }

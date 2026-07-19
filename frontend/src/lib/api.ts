@@ -19,7 +19,11 @@ export interface User {
   penalized: boolean;
   /** 페널티 임계값. 정책 값의 단일 진실 공급원은 서버(StudyTimePolicy)이므로 프론트는 하드코딩하지 않는다. */
   penaltyThreshold: number;
+  /** 권한. ADMIN 만 관리자 화면 접근. */
+  role: Role;
 }
+
+export type Role = 'USER' | 'ADMIN';
 
 
 export interface CurrentSession {
@@ -219,4 +223,54 @@ export const statsApi = {
     request<StatsCalendar>(`/me/stats/calendar?year=${year}&month=${month}`),
   weekdayPattern: () => request<StatsWeekdayPattern>('/me/stats/weekday-pattern'),
   hourlyPattern: () => request<StatsHourlyPattern>('/me/stats/hourly-pattern'),
+};
+
+// ===== 관리자(§ 관리자 페이지) — ADMIN 전용 =====
+
+export interface AdminUser {
+  id: number;
+  loginId: string;
+  displayName: string; // 관리자는 마스킹 없는 실명을 본다
+  schoolId: number | null;
+  schoolName: string | null;
+  role: Role;
+  warningCount: number;
+  penalized: boolean;
+  checkedIn: boolean;
+}
+
+export interface AdminSchool {
+  id: number;
+  name: string;
+  shortName: string | null;
+  memberCount: number;
+}
+
+export interface CafeQr {
+  id: number;
+  name: string;
+  qrToken: string;
+}
+
+export const adminApi = {
+  // 사용자
+  users: () => request<AdminUser[]>('/admin/users'),
+  changeRole: (id: number, role: Role) =>
+    request<void>(`/admin/users/${id}/role`, { method: 'PUT', body: JSON.stringify({ role }) }),
+  deleteUser: (id: number) => request<void>(`/admin/users/${id}`, { method: 'DELETE' }),
+  resetWarnings: (id: number) =>
+    request<void>(`/admin/users/${id}/warnings/reset`, { method: 'POST' }),
+  forceCheckout: (id: number) =>
+    request<void>(`/admin/users/${id}/force-checkout`, { method: 'POST' }),
+  // 학교
+  schools: () => request<AdminSchool[]>('/admin/schools'),
+  createSchool: (name: string, shortName: string | null) =>
+    request<AdminSchool>('/admin/schools', { method: 'POST', body: JSON.stringify({ name, shortName }) }),
+  updateSchool: (id: number, name: string, shortName: string | null) =>
+    request<AdminSchool>(`/admin/schools/${id}`, { method: 'PUT', body: JSON.stringify({ name, shortName }) }),
+  deleteSchool: (id: number) => request<void>(`/admin/schools/${id}`, { method: 'DELETE' }),
+  // 카페 QR / 배치
+  cafes: () => request<CafeQr[]>('/admin/cafes'),
+  rotateQr: (id: number) => request<CafeQr>(`/admin/cafes/${id}/rotate-qr`, { method: 'POST' }),
+  runDailyClose: () => request<{ closed: number }>('/admin/batch/daily-close', { method: 'POST' }),
 };

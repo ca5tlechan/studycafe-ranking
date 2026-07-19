@@ -4,13 +4,14 @@ import { createBrowserRouter, Navigate, RouterProvider } from 'react-router-dom'
 import './index.css';
 import { AuthProvider } from './lib/auth';
 import ProtectedRoute from './components/ProtectedRoute';
+import AdminRoute from './components/AdminRoute';
 import AppLayout from './components/AppLayout';
 import LoginPage from './pages/LoginPage';
 import SignupPage from './pages/SignupPage';
 import HomePage from './pages/HomePage';
 import RankingPage from './pages/RankingPage';
 import SchoolPage from './pages/SchoolPage';
-import { CheckInPage, MyPage } from './pages/lazy';
+import { AdminPage, CheckInPage, MyPage } from './pages/lazy';
 
 const lazyRoute = (node: ReactNode) => (
   <Suspense
@@ -40,6 +41,15 @@ const router = createBrowserRouter([
       { path: '/ranking', element: <RankingPage /> },
       { path: '/school', element: <SchoolPage /> },
     ],
+  },
+  {
+    // 관리자 화면은 하단탭 레이아웃 밖의 독립 화면 + ADMIN 가드.
+    path: '/admin',
+    element: (
+      <AdminRoute>
+        {lazyRoute(<AdminPage />)}
+      </AdminRoute>
+    ),
   },
   { path: '*', element: <Navigate to="/" replace /> },
 ]);
