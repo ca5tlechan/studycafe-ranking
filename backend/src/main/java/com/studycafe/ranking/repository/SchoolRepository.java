@@ -8,4 +8,6 @@ import java.util.List;
 public interface SchoolRepository extends JpaRepository<School, Long> {
 
     List<School> findAllByOrderByNameAsc();
+
+    boolean existsByName(String name);
 }

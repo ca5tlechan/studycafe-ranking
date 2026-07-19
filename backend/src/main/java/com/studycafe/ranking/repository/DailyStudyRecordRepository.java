@@ -15,6 +15,9 @@ public interface DailyStudyRecordRepository extends JpaRepository<DailyStudyReco
 
     void deleteByUserIdAndStudyDate(Long userId, LocalDate studyDate);
 
+    /** 사용자 삭제 시 집계 기록 정리(연쇄). */
+    void deleteByUserId(Long userId);
+
     /** 기간 총합(초). 실제 시간 — 랭킹 캡 미적용(§3.6e, 마이페이지). */
     @Query("select coalesce(sum(d.totalSeconds), 0) from DailyStudyRecord d "
             + "where d.user.id = :userId and d.studyDate between :start and :end")

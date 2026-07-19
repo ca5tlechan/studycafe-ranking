@@ -48,6 +48,11 @@ public class Cafe {
         this.qrToken = qrToken;
     }
 
+    /** QR 토큰 재발급(스티커 유출 의심 시 관리자가 회전, §8.1). 기존 QR 은 무효가 된다. */
+    public void rotateQrToken(String newToken) {
+        this.qrToken = newToken;
+    }
+
     public Long getId() {
         return id;
     }

@@ -2,6 +2,8 @@ package com.studycafe.ranking.domain;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -41,6 +43,17 @@ public class User {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "school_id")
     private School school;
+
+    /**
+     * 권한. 기본 USER. ADMIN 만 관리자 API 접근.
+     * ColumnDefault('USER'): ddl-auto=update 가 컬럼을 추가할 때 DDL 에 DEFAULT 를 넣어,
+     * 기존 데이터가 있는 테이블에서도 ALTER ADD COLUMN 이 기존 행을 'USER' 로 백필한다
+     * (Flyway 도입 전까지 NOT NULL 컬럼 추가가 기존 DB 에서 실패하지 않게).
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 10)
+    @org.hibernate.annotations.ColumnDefault("'USER'")
+    private Role role = Role.USER;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
@@ -91,6 +104,30 @@ public class User {
 
     public School getSchool() {
         return school;
+    }
+
+    public Role getRole() {
+        return role;
+    }
+
+    public boolean isAdmin() {
+        return role == Role.ADMIN;
+    }
+
+    /** 관리자 권한 부여/회수. */
+    public void changeRole(Role newRole) {
+        this.role = newRole;
+    }
+
+    /** 관리자 화면에서 소속 변경(학교 삭제 시 무소속 전환 등). */
+    public void setSchool(School school) {
+        this.school = school;
+    }
+
+    /** 경고 초기화(관리자 리셋 — 03:30 알림 미도달 구제, §3.6c). */
+    public void resetWarnings() {
+        this.warningCount = 0;
+        this.warningPeriodYm = 0;
     }
 
     public Instant getCreatedAt() {

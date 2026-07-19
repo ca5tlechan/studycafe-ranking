@@ -1,5 +1,6 @@
 package com.studycafe.ranking.repository;
 
+import com.studycafe.ranking.domain.Role;
 import com.studycafe.ranking.domain.School;
 import com.studycafe.ranking.domain.User;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -51,4 +52,21 @@ public interface UserRepository extends JpaRepository<User, Long> {
             + "u.warningPeriodYm = :ym "
             + "where u.id = :userId")
     void addWarning(@Param("userId") Long userId, @Param("ym") int studyMonthYm);
+
+    /** 인증 필터용 — 권한만 가볍게 조회(매 요청). grant/revoke·삭제가 즉시 반영되도록 DB 기준. */
+    @Query("select u.role from User u where u.id = :id")
+    Optional<Role> findRoleById(@Param("id") Long id);
+
+    /** 관리자 사용자 목록 — 학교까지 fetch, 최신 가입 순. */
+    @Query("select u from User u left join fetch u.school order by u.id desc")
+    List<User> findAllWithSchool();
+
+    Optional<User> findByLoginId(String loginId);
+
+    /** 학교 삭제 시 소속자 조회(무소속 전환용). */
+    List<User> findBySchool(School school);
+
+    /** 학교별 소속 인원 — 관리자 학교 목록의 memberCount(N+1 회피, 한 쿼리). row[0]=schoolId, row[1]=count. */
+    @Query("select u.school.id, count(u) from User u where u.school is not null group by u.school.id")
+    List<Object[]> countMembersBySchool();
 }

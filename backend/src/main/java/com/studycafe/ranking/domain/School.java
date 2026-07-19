@@ -37,6 +37,12 @@ public class School {
         this.shortName = shortName;
     }
 
+    /** 관리자 학교 정보 수정. */
+    public void update(String name, String shortName) {
+        this.name = name;
+        this.shortName = shortName;
+    }
+
     public Long getId() {
         return id;
     }
