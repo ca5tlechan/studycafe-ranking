@@ -44,9 +44,15 @@ public class User {
     @JoinColumn(name = "school_id")
     private School school;
 
-    /** 권한. 기본 USER. ADMIN 만 관리자 API 접근. */
+    /**
+     * 권한. 기본 USER. ADMIN 만 관리자 API 접근.
+     * ColumnDefault('USER'): ddl-auto=update 가 컬럼을 추가할 때 DDL 에 DEFAULT 를 넣어,
+     * 기존 데이터가 있는 테이블에서도 ALTER ADD COLUMN 이 기존 행을 'USER' 로 백필한다
+     * (Flyway 도입 전까지 NOT NULL 컬럼 추가가 기존 DB 에서 실패하지 않게).
+     */
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 10)
+    @org.hibernate.annotations.ColumnDefault("'USER'")
     private Role role = Role.USER;
 
     @CreationTimestamp

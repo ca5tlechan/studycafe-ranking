@@ -2,6 +2,7 @@ package com.studycafe.ranking.common;
 
 import com.studycafe.ranking.common.exception.AdminRuleViolationException;
 import com.studycafe.ranking.common.exception.AlreadyCheckedInException;
+import com.studycafe.ranking.common.exception.CafeNotFoundException;
 import com.studycafe.ranking.common.exception.DuplicateLoginIdException;
 import com.studycafe.ranking.common.exception.DuplicateSchoolNameException;
 import com.studycafe.ranking.common.exception.InvalidCafeTokenException;
@@ -45,7 +46,8 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return build(HttpStatus.UNAUTHORIZED, e.getMessage());
     }
 
-    @ExceptionHandler({SchoolNotFoundException.class, UserNotFoundException.class, InvalidCafeTokenException.class})
+    @ExceptionHandler({SchoolNotFoundException.class, UserNotFoundException.class,
+            CafeNotFoundException.class, InvalidCafeTokenException.class})
     public ResponseEntity<ApiError> handleNotFound(RuntimeException e) {
         return build(HttpStatus.NOT_FOUND, e.getMessage());
     }

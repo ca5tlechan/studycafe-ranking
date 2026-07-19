@@ -11,16 +11,19 @@ import com.studycafe.ranking.auth.AuthCookieFactory;
 import com.studycafe.ranking.auth.JwtTokenProvider;
 import com.studycafe.ranking.domain.Cafe;
 import com.studycafe.ranking.domain.CheckInSession;
+import com.studycafe.ranking.domain.DailyStudyRecord;
 import com.studycafe.ranking.domain.Role;
 import com.studycafe.ranking.domain.School;
 import com.studycafe.ranking.domain.SessionStatus;
 import com.studycafe.ranking.domain.User;
 import com.studycafe.ranking.repository.CafeRepository;
 import com.studycafe.ranking.repository.CheckInSessionRepository;
+import com.studycafe.ranking.repository.DailyStudyRecordRepository;
 import com.studycafe.ranking.repository.SchoolRepository;
 import com.studycafe.ranking.repository.UserRepository;
 import jakarta.servlet.http.Cookie;
 import java.time.Instant;
+import java.time.LocalDate;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -42,6 +45,7 @@ class AdminControllerMockMvcTest {
     @Autowired private SchoolRepository schoolRepository;
     @Autowired private CafeRepository cafeRepository;
     @Autowired private CheckInSessionRepository sessionRepository;
+    @Autowired private DailyStudyRecordRepository recordRepository;
     @Autowired private JwtTokenProvider jwtTokenProvider;
 
     private User admin;
@@ -76,14 +80,21 @@ class AdminControllerMockMvcTest {
     // ----- role -----
 
     @Test
-    @DisplayName("일반 유저에게 ADMIN 부여 → 204, 목록에 role=ADMIN")
-    void grantAdmin() throws Exception {
+    @DisplayName("ADMIN 부여 → 기존 JWT(userCookie)로 재로그인 없이 즉시 관리자 접근 200")
+    void grantAdmin_immediateAuthorizationWithExistingCookie() throws Exception {
+        // 부여 전: 기존 쿠키로는 403
+        mockMvc.perform(get("/api/admin/users").cookie(userCookie)).andExpect(status().isForbidden());
+
         mockMvc.perform(put("/api/admin/users/" + normal.getId() + "/role")
                         .cookie(adminCookie).contentType(MediaType.APPLICATION_JSON)
                         .content("{\"role\":\"ADMIN\"}"))
                 .andExpect(status().isNoContent());
+
         org.junit.jupiter.api.Assertions.assertTrue(
                 userRepository.findById(normal.getId()).orElseThrow().isAdmin());
+        // 매 요청 DB role 조회이므로, 발급받았던 그 쿠키로 즉시 200 (재로그인 불필요).
+        // 이 단언이 없으면 role 을 토큰 클레임으로 옮겨도 테스트가 통과해 회귀를 못 잡는다.
+        mockMvc.perform(get("/api/admin/users").cookie(userCookie)).andExpect(status().isOk());
     }
 
     @Test
@@ -98,10 +109,13 @@ class AdminControllerMockMvcTest {
     // ----- 삭제 -----
 
     @Test
-    @DisplayName("사용자 삭제 → 204, 세션·기록까지 연쇄 삭제")
+    @DisplayName("사용자 삭제 → 204, 세션·일별기록까지 연쇄 삭제")
     void deleteUser_cascades() throws Exception {
         Cafe cafe = cafeRepository.save(new Cafe("삭제카페", "DEL-QR"));
         sessionRepository.saveAndFlush(new CheckInSession(normal, cafe, Instant.now().minusSeconds(3600)));
+        DailyStudyRecord rec = new DailyStudyRecord(normal, LocalDate.of(2026, 7, 8));
+        rec.setTotalSeconds(3600);
+        recordRepository.saveAndFlush(rec);
 
         mockMvc.perform(delete("/api/admin/users/" + normal.getId()).cookie(adminCookie))
                 .andExpect(status().isNoContent());
@@ -109,6 +123,15 @@ class AdminControllerMockMvcTest {
         org.junit.jupiter.api.Assertions.assertTrue(userRepository.findById(normal.getId()).isEmpty());
         org.junit.jupiter.api.Assertions.assertTrue(
                 sessionRepository.findActiveByUserId(normal.getId()).isEmpty());
+        org.junit.jupiter.api.Assertions.assertTrue(
+                recordRepository.findByUserId(normal.getId()).isEmpty());
+    }
+
+    @Test
+    @DisplayName("없는 카페 QR 재발급 → 404")
+    void rotateQr_missingCafe_404() throws Exception {
+        mockMvc.perform(post("/api/admin/cafes/999999/rotate-qr").cookie(adminCookie))
+                .andExpect(status().isNotFound());
     }
 
     @Test

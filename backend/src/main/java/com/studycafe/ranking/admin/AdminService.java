@@ -7,6 +7,7 @@ import com.studycafe.ranking.admin.dto.AdminDtos.CafeQr;
 import com.studycafe.ranking.admin.dto.AdminDtos.SchoolRequest;
 import com.studycafe.ranking.batch.DailyCloseService;
 import com.studycafe.ranking.common.exception.AdminRuleViolationException;
+import com.studycafe.ranking.common.exception.CafeNotFoundException;
 import com.studycafe.ranking.common.exception.DuplicateSchoolNameException;
 import com.studycafe.ranking.common.exception.SchoolNotFoundException;
 import com.studycafe.ranking.common.exception.UserNotFoundException;
@@ -31,6 +32,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -140,8 +142,14 @@ public class AdminService {
         if (schoolRepository.existsByName(req.name())) {
             throw new DuplicateSchoolNameException(req.name());
         }
-        School saved = schoolRepository.save(new School(req.name(), blankToNull(req.shortName())));
-        return new AdminSchool(saved.getId(), saved.getName(), saved.getShortName(), 0);
+        try {
+            // saveAndFlush: existsByName 이후 동시 생성 레이스에서 제약 위반을 커밋이 아닌 지금 유발해 잡는다.
+            School saved = schoolRepository.saveAndFlush(new School(req.name(), blankToNull(req.shortName())));
+            return new AdminSchool(saved.getId(), saved.getName(), saved.getShortName(), 0);
+        } catch (DataIntegrityViolationException e) {
+            // schools 의 유일한 유니크 제약은 name 이라, 여기 위반은 이름 중복이다 → 409.
+            throw new DuplicateSchoolNameException(req.name());
+        }
     }
 
     public AdminSchool updateSchool(Long schoolId, SchoolRequest req) {
@@ -151,6 +159,11 @@ public class AdminService {
             throw new DuplicateSchoolNameException(req.name());
         }
         school.update(req.name(), blankToNull(req.shortName()));
+        try {
+            schoolRepository.flush(); // 동시 수정 레이스의 name 유니크 위반을 지금 잡는다.
+        } catch (DataIntegrityViolationException e) {
+            throw new DuplicateSchoolNameException(req.name());
+        }
         return new AdminSchool(school.getId(), school.getName(), school.getShortName(),
                 userRepository.findBySchool(school).size());
     }
@@ -169,7 +182,7 @@ public class AdminService {
     /** QR 토큰 재발급. 기존 QR 은 무효가 되므로 새 토큰으로 QR 을 재출력·부착해야 한다. */
     public CafeQr rotateCafeQr(Long cafeId) {
         Cafe cafe = cafeRepository.findById(cafeId)
-                .orElseThrow(() -> new AdminRuleViolationException("카페를 찾을 수 없습니다: " + cafeId));
+                .orElseThrow(() -> new CafeNotFoundException(cafeId));
         cafe.rotateQrToken("STUDYCAFE-" + UUID.randomUUID().toString().substring(0, 12).toUpperCase());
         return new CafeQr(cafe.getId(), cafe.getName(), cafe.getQrToken());
     }
