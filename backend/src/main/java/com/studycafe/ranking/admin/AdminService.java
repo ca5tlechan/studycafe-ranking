@@ -148,7 +148,7 @@ public class AdminService {
             return new AdminSchool(saved.getId(), saved.getName(), saved.getShortName(), 0);
         } catch (DataIntegrityViolationException e) {
             // schools 의 유일한 유니크 제약은 name 이라, 여기 위반은 이름 중복이다 → 409.
-            throw new DuplicateSchoolNameException(req.name());
+            throw new DuplicateSchoolNameException(req.name(), e);
         }
     }
 
@@ -162,7 +162,7 @@ public class AdminService {
         try {
             schoolRepository.flush(); // 동시 수정 레이스의 name 유니크 위반을 지금 잡는다.
         } catch (DataIntegrityViolationException e) {
-            throw new DuplicateSchoolNameException(req.name());
+            throw new DuplicateSchoolNameException(req.name(), e);
         }
         return new AdminSchool(school.getId(), school.getName(), school.getShortName(),
                 userRepository.findBySchool(school).size());
