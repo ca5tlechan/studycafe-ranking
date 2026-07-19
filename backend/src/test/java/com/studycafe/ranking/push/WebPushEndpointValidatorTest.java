@@ -33,6 +33,13 @@ class WebPushEndpointValidatorTest {
             "https://169.254.10.10/x",          // link-local
             "https://[::1]/x",                  // IPv6 loopback
             "https://[fd00::1]/x",              // IPv6 ULA
+            "https://100.64.0.1/x",             // 공유대역 CGNAT (100.64/10)
+            "https://100.127.255.254/x",        // 공유대역 CGNAT 상단
+            "https://2130706433/x",             // 우회: 십진 정수 = 127.0.0.1
+            "https://0x7f000001/x",             // 우회: 16진 = 127.0.0.1
+            "https://017700000001/x",           // 우회: 8진 = 127.0.0.1
+            "https://127.1/x",                  // 우회: 축약 = 127.0.0.1
+            "https://0177.0.0.1/x",             // 우회: 선행 0 옥텟
             "not a url",                        // 형식 오류
     })
     void rejectsNonHttpsOrInternalEndpoints(String endpoint) {

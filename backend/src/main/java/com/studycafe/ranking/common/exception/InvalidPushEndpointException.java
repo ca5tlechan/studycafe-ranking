@@ -6,4 +6,8 @@ public class InvalidPushEndpointException extends RuntimeException {
     public InvalidPushEndpointException(String message) {
         super(message);
     }
+
+    public InvalidPushEndpointException(String message, Throwable cause) {
+        super(message, cause);
+    }
 }

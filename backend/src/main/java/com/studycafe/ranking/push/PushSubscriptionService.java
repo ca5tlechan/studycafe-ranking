@@ -140,7 +140,7 @@ public class PushSubscriptionService {
             future.cancel(true);
             return WebPushSender.Result.FAILED;
         } catch (ExecutionException e) {
-            log.warn("[push] 전송 작업 실패: {}", String.valueOf(e.getCause()));
+            log.warn("[push] 전송 작업 실패", e.getCause());
             return WebPushSender.Result.FAILED;
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
