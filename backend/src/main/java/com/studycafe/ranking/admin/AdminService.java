@@ -17,6 +17,7 @@ import com.studycafe.ranking.domain.Role;
 import com.studycafe.ranking.domain.School;
 import com.studycafe.ranking.domain.SessionStatus;
 import com.studycafe.ranking.domain.User;
+import com.studycafe.ranking.push.PushSubscriptionRepository;
 import com.studycafe.ranking.repository.CafeRepository;
 import com.studycafe.ranking.repository.CheckInSessionRepository;
 import com.studycafe.ranking.repository.DailyStudyRecordRepository;
@@ -46,6 +47,7 @@ public class AdminService {
     private final CafeRepository cafeRepository;
     private final CheckInSessionRepository sessionRepository;
     private final DailyStudyRecordRepository recordRepository;
+    private final PushSubscriptionRepository pushSubscriptionRepository;
     private final StudyRecordService studyRecordService;
     private final DailyCloseService dailyCloseService;
 
@@ -54,6 +56,7 @@ public class AdminService {
                         CafeRepository cafeRepository,
                         CheckInSessionRepository sessionRepository,
                         DailyStudyRecordRepository recordRepository,
+                        PushSubscriptionRepository pushSubscriptionRepository,
                         StudyRecordService studyRecordService,
                         DailyCloseService dailyCloseService) {
         this.userRepository = userRepository;
@@ -61,6 +64,7 @@ public class AdminService {
         this.cafeRepository = cafeRepository;
         this.sessionRepository = sessionRepository;
         this.recordRepository = recordRepository;
+        this.pushSubscriptionRepository = pushSubscriptionRepository;
         this.studyRecordService = studyRecordService;
         this.dailyCloseService = dailyCloseService;
     }
@@ -100,9 +104,10 @@ public class AdminService {
             throw new AdminRuleViolationException("자신의 계정은 삭제할 수 없습니다.");
         }
         User target = getUser(targetUserId);
-        // 연쇄 정리: 집계 기록 → 세션 → 사용자 (FK 순서).
+        // 연쇄 정리: 집계 기록 → 세션 → 푸시 구독 → 사용자 (FK 순서).
         recordRepository.deleteByUserId(target.getId());
         sessionRepository.deleteByUserId(target.getId());
+        pushSubscriptionRepository.deleteByUserId(target.getId());
         userRepository.delete(target);
     }
 

@@ -25,5 +25,15 @@ app:
     # 초기 관리자로 승격할 계정 loginId. 그 계정이 이후 다른 계정에 권한을 부여/회수한다.
     # 비어 있으면 부트스트랩 관리자 없음(가입 후 이 값을 넣고 재기동).
     login-id: ${ADMIN_LOGIN_ID:}
+  push:
+    # Web Push(§3.6b, §8.4). VAPID 공개/개인 키가 둘 다 있어야 활성화되고, 없으면 no-op 로 기동.
+    # 키는 비밀정보이므로 환경변수로만 주입(커밋 금지). 생성: `npx web-push generate-vapid-keys`
+    #   VAPID_PUBLIC_KEY=<base64url 65바이트>, VAPID_PRIVATE_KEY=<base64url 32바이트>
+    vapid:
+      public-key: ${VAPID_PUBLIC_KEY:}
+      private-key: ${VAPID_PRIVATE_KEY:}
+      subject: ${VAPID_SUBJECT:mailto:admin@studycafe.app}   # RFC 8292 연락처(mailto:/https:), 비밀 아님
+    # 03:30 사전 알림 배치 cron(§9.4, 03:00~03:30 조정 가능). KST 기준.
+    pre-close-cron: ${PRE_CLOSE_NOTIFY_CRON:0 30 3 * * *}
 
 # 실제 시크릿(JWT 등)은 여기 리터럴로 넣지 말 것. 환경변수(${...}) 또는 .env / application-local.yml(gitignore됨)로 주입.

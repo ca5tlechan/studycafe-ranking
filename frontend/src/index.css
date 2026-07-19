@@ -165,6 +165,11 @@ button { font: inherit; cursor: pointer; }
 .warn-banner.penalized { background: color-mix(in srgb, var(--danger) 13%, transparent); color: var(--danger); }
 .warn-banner b { font-weight: 800; }
 .now-line { display: flex; align-items: center; gap: 10px; font-size: 13.5px; color: var(--ink-2); }
+/* 03:30 마감 알림 토글(§3.6b) */
+.push-card { margin-bottom: 12px; }
+.push-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.push-row .btn.sm { flex-shrink: 0; }
+.push-desc { margin: 4px 0 0; }
 .stat-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .stat { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 16px; }
 .stat-v { font-size: 21px; font-weight: 730; letter-spacing: -.02em; margin-top: 6px; }

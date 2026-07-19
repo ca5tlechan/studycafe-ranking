@@ -8,6 +8,11 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
+      // Workbox 가 생성하는 서비스워커 최상단에 push 핸들러를 주입한다(§3.6b Web Push).
+      // public/push-sw.js 는 그대로 정적 배포되고, 생성 SW 가 importScripts 로 불러온다.
+      workbox: {
+        importScripts: ['push-sw.js'],
+      },
       manifest: {
         name: '스터디카페 랭킹',
         short_name: '스카랭킹',

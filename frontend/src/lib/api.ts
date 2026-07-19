@@ -274,3 +274,25 @@ export const adminApi = {
   rotateQr: (id: number) => request<CafeQr>(`/admin/cafes/${id}/rotate-qr`, { method: 'POST' }),
   runDailyClose: () => request<{ closed: number }>('/admin/batch/daily-close', { method: 'POST' }),
 };
+
+// ===== Web Push(§3.6b 03:30 사전 알림) =====
+
+/** VAPID 공개키. enabled=false(서버에 키 미설정)면 알림 토글을 숨긴다. */
+export interface VapidKey {
+  enabled: boolean;
+  publicKey: string | null;
+}
+
+/** 브라우저 PushSubscription.toJSON() 과 동일한 형태로 서버에 저장한다. */
+export interface PushSubscriptionPayload {
+  endpoint: string;
+  keys: { p256dh: string; auth: string };
+}
+
+export const pushApi = {
+  vapidKey: () => request<VapidKey>('/push/vapid-public-key'),
+  subscribe: (sub: PushSubscriptionPayload) =>
+    request<void>('/push/subscribe', { method: 'POST', body: JSON.stringify(sub) }),
+  unsubscribe: (endpoint: string) =>
+    request<void>('/push/unsubscribe', { method: 'POST', body: JSON.stringify({ endpoint }) }),
+};
