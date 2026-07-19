@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../lib/auth';
 import {
@@ -17,9 +17,18 @@ export default function AdminPage() {
   const [tab, setTab] = useState<Tab>('users');
   const [toast, setToast] = useState<string>('');
 
+  const toastTimer = useRef<number | undefined>(undefined);
   const notify = useCallback((msg: string) => {
+    if (toastTimer.current !== undefined) window.clearTimeout(toastTimer.current);
     setToast(msg);
-    window.setTimeout(() => setToast(''), 2600);
+    toastTimer.current = window.setTimeout(() => {
+      setToast('');
+      toastTimer.current = undefined;
+    }, 2600);
+  }, []);
+
+  useEffect(() => () => {
+    if (toastTimer.current !== undefined) window.clearTimeout(toastTimer.current);
   }, []);
 
   return (
@@ -258,6 +267,7 @@ function OpsTab({ notify }: { notify: (m: string) => void }) {
   };
 
   const runBatch = async () => {
+    if (!confirm('모든 활성 세션을 04:00(KST) 기준으로 마감합니다. 집계·경고 적립까지 즉시 처리되며 되돌릴 수 없어요. 실행할까요?')) return;
     setRunning(true);
     try {
       const res = await adminApi.runDailyClose();
