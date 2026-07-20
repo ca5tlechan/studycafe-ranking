@@ -34,6 +34,14 @@ public class StartupCatchUp {
     public StartupCatchUp(DailyCloseService dailyCloseService,
                           @Value("${app.batch.startup-catchup.max-attempts:3}") int maxAttempts,
                           @Value("${app.batch.startup-catchup.backoff-ms:3000}") long backoffMs) {
+        // 잘못된 설정으로 catch-up 이 조용히 무력화되지 않게 거부한다.
+        // (maxAttempts<1 이면 한 번도 안 돌고, backoffMs<0 이면 지연 없이 재시도.)
+        if (maxAttempts < 1) {
+            throw new IllegalArgumentException("app.batch.startup-catchup.max-attempts 는 1 이상이어야 합니다: " + maxAttempts);
+        }
+        if (backoffMs < 0) {
+            throw new IllegalArgumentException("app.batch.startup-catchup.backoff-ms 는 음수일 수 없습니다: " + backoffMs);
+        }
         this.dailyCloseService = dailyCloseService;
         this.maxAttempts = maxAttempts;
         this.backoffMs = backoffMs;

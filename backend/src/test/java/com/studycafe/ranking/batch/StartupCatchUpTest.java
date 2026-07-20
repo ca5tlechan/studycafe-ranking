@@ -11,6 +11,7 @@ import java.time.temporal.ChronoUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -50,5 +51,14 @@ class StartupCatchUpTest {
         // 재시도를 소진해도 기동을 막지 않는다(예외 전파 X).
         assertThatCode(startupCatchUp::catchUpOnStartup).doesNotThrowAnyException();
         verify(dailyCloseService, times(3)).closeOverdue(any());
+    }
+
+    @Test
+    void rejectsInvalidRetryConfiguration() {
+        // 잘못된 설정으로 catch-up 이 조용히 무력화되지 않게 생성 시 거부한다.
+        assertThatThrownBy(() -> new StartupCatchUp(dailyCloseService, 0, 100))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> new StartupCatchUp(dailyCloseService, 3, -1))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 }
