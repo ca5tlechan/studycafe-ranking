@@ -65,7 +65,6 @@ export default function CheckInPage() {
   const [manual, setManual] = useState('');
   const [uncertain, setUncertain] = useState(false); // 반영 여부를 모르는 실패 → 자동 재스캔 금지
   const [reconciling, setReconciling] = useState(false); // 서버 상태 재조회 중 → 아직 결론 아님
-  const [scanNonce, setScanNonce] = useState(0); // 값이 바뀌면 스캐너를 다시 켠다
 
   const rejectedTokenRef = useRef<string | null>(null); // 방금 거절당한 토큰 — 자동 재요청 방지
   const scannerRef = useRef<Html5Qrcode | null>(null);
@@ -85,14 +84,8 @@ export default function CheckInPage() {
   }, [loadStatus]);
 
   /**
-   * 넘겨받은 인스턴스만 정지한다. ref 를 다시 읽으면, 권한 승인이 늦어지는 사이 이전 effect 의
-   * 뒷정리가 이미 교체된 새 스캐너를 멈춰 버린다(= 이전 카메라는 켜진 채로 남는다).
-   *
-   * 공개 필드 isScanning 으로 막으면 안 된다. 그 값은 video 의 'playing' 이벤트에서야 켜지는데,
-   * start() 프로미스는 그보다 먼저 resolve 된다. 그래서 정지 시점엔 대개 아직 false 이고,
-   * stop() 을 건너뛰면 카메라 트랙이 살아남는다. 라이브러리의 stop() 이 실제로 보는 값은 getState().
-   * stop() 은 트랙 정지(= 카메라 꺼짐)와 video 엘리먼트 제거까지 해주므로 clear() 는 부르지 않는다
-   * (clear() 는 elementId 로 DOM 을 찾아 비우기 때문에 새 스캐너의 화면을 지울 수 있다).
+   * 넘겨받은 인스턴스만 정지한다. stop() 은 트랙 정지(= 카메라 꺼짐)와 video 엘리먼트 제거까지
+   * 해주므로 clear() 는 부르지 않는다(clear() 는 elementId 로 DOM 을 찾아 비워, 화면을 지울 수 있다).
    */
   const stopScanner = useCallback(async (scanner: Html5Qrcode) => {
     try {
@@ -142,8 +135,6 @@ export default function CheckInPage() {
   /**
    * 토글의 단일 진입점 — 카메라 콜백과 수동 실행이 이 잠금 하나를 공유한다.
    * handledRef 는 await 이전에 동기적으로 선점하므로 두 경로가 겹쳐 두 번 토글될 수 없다.
-   * (예전엔 수동 실행이 이 잠금을 안 쥐어서, 수동 토글 직후 도착한 QR 인식이 곧바로 반대로
-   *  토글해 버릴 수 있었다.)
    * 성공·미상일 때는 잠금을 풀지 않는다. 결과 화면이나 재조회 화면으로 넘어가기 때문이다.
    */
   const runToggle = useCallback(
@@ -168,28 +159,37 @@ export default function CheckInPage() {
     async (text: string) => {
       // 거절된 QR 이 화면에 남아 있으면 초당 10번 다시 인식된다. 재스캔 자체는 안전하지만
       // 같은 토큰을 무한히 재요청하게 되므로, 방금 거절당한 토큰은 보내지 않는다.
-      // (사용자가 올바른 QR 로 옮기면 토큰이 달라지므로 그때 정상 처리된다.)
       if (text === rejectedTokenRef.current) return;
       await runToggle(text);
     },
     [runToggle],
   );
 
-  useEffect(() => {
-    // 초기(scanNonce 0)엔 카메라를 자동으로 켜지 않는다 — iOS(특히 설치형 PWA)는 사용자 탭(제스처)
-    // 없이는 카메라 권한 프롬프트를 띄우지 않아 getUserMedia 가 조용히 막힌다. "QR 스캔 시작"을
-    // 누르면 rescan 이 scanNonce 를 올려 여기서 카메라를 켠다.
-    if (scanNonce === 0) return;
-    // 스캐너를 감추는 분기(uncertain 등)에서는 대상 엘리먼트가 없다. 생성자가 던지므로 먼저 막는다.
-    if (!document.getElementById(SCANNER_ID)) return;
+  /**
+   * 카메라 시작 — 반드시 사용자 탭(클릭 핸들러) 안에서 동기적으로 호출한다.
+   * iOS(특히 설치형 PWA)는 getUserMedia 를 사용자 제스처가 살아 있는 동안 호출해야 권한 프롬프트를
+   * 띄운다. state 변경 → effect 로 미루면 제스처가 끊겨 카메라가 조용히 막힌다(그래서 effect 시작 금지).
+   * 대상 엘리먼트(#qr-reader)는 결과 화면이 아닌 한 항상 DOM 에 있어 여기서 즉시 붙일 수 있다.
+   */
+  const startScan = useCallback(() => {
+    handledRef.current = false;
+    rejectedTokenRef.current = null;
+    setUncertain(false);
+    setError('');
+    setCamera('starting');
 
-    let cancelled = false;
+    const prev = scannerRef.current; // 이전(멈췄거나 실패한) 스캐너 정리
+    if (prev) void stopScanner(prev);
+
+    if (!document.getElementById(SCANNER_ID)) {
+      setCamera('unavailable');
+      return;
+    }
     const scanner = new Html5Qrcode(SCANNER_ID, {
       formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE],
       verbose: false,
     });
     scannerRef.current = scanner;
-
     scanner
       .start(
         { facingMode: 'environment' },
@@ -198,32 +198,22 @@ export default function CheckInPage() {
         undefined,
       )
       .then(() => {
-        // StrictMode 이중 마운트/이탈 시 켜 둔 카메라가 남지 않도록
-        if (cancelled) void stopScanner(scanner);
-        else setCamera('running');
+        if (scannerRef.current === scanner) setCamera('running');
       })
       .catch(() => {
-        if (!cancelled) setCamera('unavailable');
+        if (scannerRef.current === scanner) setCamera('unavailable');
       });
+  }, [handleScan, stopScanner]);
 
+  // 페이지를 떠날 때 켜 둔 카메라를 정지한다(스캐너는 사용자 탭으로만 켜지므로 마운트 시엔 없음).
+  useEffect(() => {
     return () => {
-      cancelled = true;
-      void stopScanner(scanner);
+      const scanner = scannerRef.current;
+      if (scanner) void stopScanner(scanner);
     };
-    // scanNonce 가 바뀌면(= 사용자가 다시 스캔을 누르면) 스캐너를 새로 켠다.
-  }, [handleScan, stopScanner, scanNonce]);
+  }, [stopScanner]);
 
   const runManual = () => void runToggle(manual.trim());
-
-  /** 사용자가 명시적으로 요청할 때만 카메라를 다시 켠다(반영 여부 확인 후, 또는 카메라 실패 후). */
-  const rescan = () => {
-    handledRef.current = false;
-    rejectedTokenRef.current = null;
-    setUncertain(false);
-    setError('');
-    setCamera('starting');
-    setScanNonce((n) => n + 1);
-  };
 
   const checkedOutSeconds =
     result?.action === 'CHECK_OUT' && result.checkOutAt
@@ -272,13 +262,10 @@ export default function CheckInPage() {
         ) : (
           <div className="card stack">
             {/* uncertain 을 먼저 본다. 토글이 5xx 로 실패하면 뒤이은 상태 재조회도 같은 이유로
-                실패하기 쉬운데, statusFailed 를 먼저 보면 "QR을 찍으면 전환돼요"라는 반대 안내가
-                뜬다(카메라는 이미 꺼져 있고, 재스캔은 이중 토글을 부른다). */}
+                실패하기 쉬운데, statusFailed 를 먼저 보면 "QR을 찍으면 전환돼요"라는 반대 안내가 뜬다. */}
             {uncertain ? (
-              // 반영 여부를 모르는 실패 뒤 — 서버에 실제로 뭐가 남았는지를 보여준다.
               <div className="scan-hint">
                 {reconciling ? (
-                  // 아직 재조회 중 — current 는 토글 이전의 옛 상태다. 결론인 것처럼 보이면 안 된다.
                   <>서버에 실제로 기록됐는지 확인하는 중이에요…</>
                 ) : statusFailed ? (
                   <>서버 상태도 확인하지 못했어요. 연결이 돌아온 뒤 홈에서 기록을 확인해 주세요.</>
@@ -309,39 +296,39 @@ export default function CheckInPage() {
               </div>
             )}
 
-            {uncertain ? (
-              // 카메라를 다시 켜지 않는다 — QR이 화면에 남아 있어 곧바로 재스캔되면 반대로 토글된다.
-              // 재조회가 끝나기 전엔 뭐가 기록됐는지 모르므로 그동안은 다시 스캔도 막는다.
-              <button className="btn" disabled={reconciling} onClick={rescan}>
-                {reconciling ? '확인하는 중…' : '다시 스캔'}
-              </button>
-            ) : camera === 'idle' ? (
-              // iOS 는 사용자 탭(제스처)이 있어야 카메라를 연다 — 자동 실행 대신 버튼으로 시작한다.
-              <button className="btn full" onClick={rescan}>QR 스캔 시작</button>
-            ) : (
-              <div className="scanner">
-                <div id={SCANNER_ID} />
-                {camera === 'starting' && (
-                  <div className="scanner-msg">
-                    <div className="spinner" aria-label="카메라 준비 중" />
-                  </div>
-                )}
-                {camera === 'unavailable' && (
-                  <div className="scanner-msg">
-                    카메라를 열 수 없어요.
-                    <br />
-                    {/* 보안 컨텍스트(HTTPS/localhost)가 아니면 권한과 무관하게 카메라 자체를 못 연다.
-                        폰에서 http://192.168.x.x 로 접속한 경우가 여기 해당한다. */}
-                    {window.isSecureContext
-                      ? '브라우저에서 카메라 권한을 허용했는지 확인해 주세요.'
-                      : 'HTTPS 연결에서만 카메라를 쓸 수 있어요.'}
-                    <br />
-                    {/* 이 상태에서 스캐너를 다시 만들 방법이 없으면 화면이 막힌다(프로덕션엔 수동 입력이 없다). */}
-                    <button type="button" className="btn ghost" onClick={rescan}>다시 시도</button>
-                  </div>
-                )}
-              </div>
-            )}
+            {/* #qr-reader 는 항상 DOM 에 둔다 — startScan 이 사용자 탭 안에서 곧바로 붙일 수 있어야 한다. */}
+            <div className="scanner">
+              <div id={SCANNER_ID} />
+              {uncertain ? (
+                // 카메라를 자동으로 켜지 않는다 — QR이 화면에 남아 있어 곧바로 재스캔되면 반대로 토글된다.
+                // 재조회가 끝나기 전엔 뭐가 기록됐는지 모르므로 그동안은 다시 스캔도 막는다.
+                <div className="scanner-msg">
+                  <button className="btn" disabled={reconciling} onClick={startScan}>
+                    {reconciling ? '확인하는 중…' : '다시 스캔'}
+                  </button>
+                </div>
+              ) : camera === 'idle' ? (
+                // iOS 는 사용자 탭(제스처)이 있어야 카메라를 연다 — 자동 실행 대신 버튼으로 시작한다.
+                <div className="scanner-msg">
+                  <button className="btn full" onClick={startScan}>QR 스캔 시작</button>
+                </div>
+              ) : camera === 'starting' ? (
+                <div className="scanner-msg">
+                  <div className="spinner" aria-label="카메라 준비 중" />
+                </div>
+              ) : camera === 'unavailable' ? (
+                <div className="scanner-msg">
+                  카메라를 열 수 없어요.
+                  <br />
+                  {/* 보안 컨텍스트(HTTPS/localhost)가 아니면 권한과 무관하게 카메라 자체를 못 연다. */}
+                  {window.isSecureContext
+                    ? '브라우저에서 카메라 권한을 허용했는지 확인해 주세요.'
+                    : 'HTTPS 연결에서만 카메라를 쓸 수 있어요.'}
+                  <br />
+                  <button type="button" className="btn ghost" onClick={startScan}>다시 시도</button>
+                </div>
+              ) : null /* running — 라이브 카메라가 보인다 */}
+            </div>
 
             {busy && <div className="scan-hint">기록하는 중…</div>}
           </div>
@@ -368,8 +355,6 @@ export default function CheckInPage() {
               placeholder="카페 QR 토큰"
               aria-label="카페 QR 토큰"
             />
-            {/* uncertain 이면 잠금(handledRef)이 잡혀 있어 눌러도 아무 일이 없다 → 아예 막는다.
-                재개는 "다시 스캔"으로만 한다(=서버 상태를 확인한 뒤). */}
             <button
               className="btn"
               disabled={busy || uncertain || reconciling || !manual.trim()}
