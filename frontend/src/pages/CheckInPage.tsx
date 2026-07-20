@@ -10,7 +10,7 @@ const SCANNER_ID = 'qr-reader';
 const MIN_SESSION_SECONDS = 10 * 60;
 
 
-type CameraState = 'starting' | 'running' | 'unavailable';
+type CameraState = 'idle' | 'starting' | 'running' | 'unavailable';
 
 
 const secondsBetween = (fromIso: string, toIso: string): number =>
@@ -56,7 +56,7 @@ function messageFor(err: unknown): string {
 }
 
 export default function CheckInPage() {
-  const [camera, setCamera] = useState<CameraState>('starting');
+  const [camera, setCamera] = useState<CameraState>('idle');
   const [current, setCurrent] = useState<CurrentSession | null>(null);
   const [statusFailed, setStatusFailed] = useState(false);
   const [result, setResult] = useState<SessionToggle | null>(null);
@@ -176,6 +176,10 @@ export default function CheckInPage() {
   );
 
   useEffect(() => {
+    // 초기(scanNonce 0)엔 카메라를 자동으로 켜지 않는다 — iOS(특히 설치형 PWA)는 사용자 탭(제스처)
+    // 없이는 카메라 권한 프롬프트를 띄우지 않아 getUserMedia 가 조용히 막힌다. "QR 스캔 시작"을
+    // 누르면 rescan 이 scanNonce 를 올려 여기서 카메라를 켠다.
+    if (scanNonce === 0) return;
     // 스캐너를 감추는 분기(uncertain 등)에서는 대상 엘리먼트가 없다. 생성자가 던지므로 먼저 막는다.
     if (!document.getElementById(SCANNER_ID)) return;
 
@@ -311,6 +315,9 @@ export default function CheckInPage() {
               <button className="btn" disabled={reconciling} onClick={rescan}>
                 {reconciling ? '확인하는 중…' : '다시 스캔'}
               </button>
+            ) : camera === 'idle' ? (
+              // iOS 는 사용자 탭(제스처)이 있어야 카메라를 연다 — 자동 실행 대신 버튼으로 시작한다.
+              <button className="btn full" onClick={rescan}>QR 스캔 시작</button>
             ) : (
               <div className="scanner">
                 <div id={SCANNER_ID} />
