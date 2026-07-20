@@ -1,3 +1,7 @@
+server:
+  # Render 등 PaaS 는 리스닝 포트를 PORT 환경변수로 주입한다. 로컬은 8080.
+  port: ${PORT:8080}
+
 spring:
   application:
     name: ranking

@@ -44,7 +44,10 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/auth/signup", "/api/auth/login").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/schools").permitAll()
                         .requestMatchers("/api/admin/**").hasRole("ADMIN") // 관리자 전용
-                        .anyRequest().authenticated())
+                        .requestMatchers("/api/**").authenticated()        // 그 외 API 는 인증 필요
+                        // 단일 오리진 배포: Spring 이 프론트(정적)와 SPA 라우트, keep-alive용 /healthz 를
+                        // 함께 서빙한다. 이들은 공개(보호는 /api 에만). 앱 인증은 클라이언트+ /api 에서 이뤄진다.
+                        .anyRequest().permitAll())
                 .exceptionHandling(eh -> eh
                         .authenticationEntryPoint(authenticationEntryPoint) // 미인증 → 401
                         .accessDeniedHandler(accessDeniedHandler))          // 인증됐으나 권한 없음 → 403
