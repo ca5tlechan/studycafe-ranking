@@ -37,3 +37,8 @@ dependencies {
 tasks.named('test') {
 	useJUnitPlatform()
 }
+
+// 실행 가능한 bootJar 하나만 남긴다(-plain.jar 비활성화) → 배포 이미지에서 jar 이름이 모호하지 않게.
+tasks.named('jar') {
+	enabled = false
+}

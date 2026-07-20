@@ -1,0 +1,31 @@
+# Render Blueprint (Phase 12). Docker 로 단일 서비스 빌드/배포.
+# 무료 플랜은 15분 유휴 시 spin-down 되므로, 배포 후 UptimeRobot 등으로 /healthz 를 14분마다 핑해
+# 인스턴스를 깨워두면 04:00/03:30 @Scheduled 배치가 정시에 뜬다.
+# 시크릿(sync: false)은 커밋하지 않고 Render 대시보드에서 직접 입력한다.
+services:
+  - type: web
+    name: studycafe-ranking
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    healthCheckPath: /healthz
+    envVars:
+      - key: JWT_COOKIE_SECURE
+        value: "true"          # 프로덕션은 HTTPS → Secure 쿠키
+      - key: VAPID_SUBJECT
+        value: "mailto:admin@studycafe.app"   # 비밀 아님(연락처). 실제 값으로 바꿔도 됨
+      # --- 아래는 대시보드에서 직접 입력(커밋 금지) ---
+      - key: JWT_SECRET
+        sync: false            # 32바이트+ 랜덤
+      - key: DB_URL
+        sync: false            # jdbc:postgresql://<neon-host>/<db>?sslmode=require
+      - key: DB_USERNAME
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: VAPID_PUBLIC_KEY
+        sync: false
+      - key: VAPID_PRIVATE_KEY
+        sync: false
+      - key: ADMIN_LOGIN_ID
+        sync: false            # 초기 관리자로 승격할 계정 loginId

@@ -35,3 +35,7 @@ out/
 
 ### VS Code ###
 .vscode/
+
+# 단일 오리진: 프론트 빌드가 복사되는 위치(이미지 빌드가 채움 — 커밋 금지)
+/src/main/resources/static/*
+!/src/main/resources/static/.gitkeep

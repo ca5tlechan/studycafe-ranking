@@ -1,0 +1,13 @@
+# 빌드 컨텍스트에서 제외 — 이미지 빌드는 소스에서 새로 빌드한다.
+**/node_modules
+**/dist
+**/build
+**/.gradle
+.git
+.github
+**/.env
+**/application-local.yml
+**/*.log
+.idea
+.vscode
+scratchpad
