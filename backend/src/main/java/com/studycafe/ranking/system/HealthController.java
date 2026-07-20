@@ -23,10 +23,11 @@ public class HealthController {
 
     @GetMapping("/healthz")
     public Map<String, Object> healthz() {
+        CatchUpStatus.Snapshot snapshot = catchUpStatus.snapshot(); // 원자적 스냅샷 — 상태/시각 일관
         Map<String, Object> body = new LinkedHashMap<>();
-        if (catchUpStatus.isDegraded()) {
+        if (snapshot.degraded()) {
             body.put("status", "degraded");
-            body.put("batchCatchUpFailingSince", String.valueOf(catchUpStatus.getDegradedSince()));
+            body.put("batchCatchUpFailingSince", String.valueOf(snapshot.degradedSince()));
         } else {
             body.put("status", "ok");
         }

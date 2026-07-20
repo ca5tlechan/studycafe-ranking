@@ -74,7 +74,9 @@ public class StartupCatchUp {
                 if (!sleep(backoff)) {
                     return; // 인터럽트 시 조용히 종료
                 }
-                backoff *= 2;
+                // 포화 증가: 큰 설정값에서 backoff*2 가 long 오버플로로 음수/0 이 되면 sleep 이 즉시 반환해
+                // 바쁜 재시도 루프가 된다 — 상한에서 멈춘다.
+                backoff = backoff > Long.MAX_VALUE / 2 ? Long.MAX_VALUE : backoff * 2;
             }
         }
     }
