@@ -67,6 +67,22 @@ class StartupCatchUpTest {
     }
 
     @Test
+    void marksDegradedWhenInterruptedDuringBackoff() {
+        when(dailyCloseService.closeOverdue(any())).thenThrow(new RuntimeException("fail"));
+        StartupCatchUp startupCatchUp = new StartupCatchUp(dailyCloseService, catchUpStatus, 3, 1000); // backoff>0 → sleep
+        Thread.currentThread().interrupt(); // 다음 sleep 에서 즉시 InterruptedException
+        try {
+            startupCatchUp.catchUpOnStartup();
+
+            // 첫 시도 실패 → backoff sleep 인터럽트 → 미완료 상태를 degraded 로 남기고 중단.
+            verify(dailyCloseService, times(1)).closeOverdue(any());
+            assertThat(catchUpStatus.isDegraded()).isTrue();
+        } finally {
+            Thread.interrupted(); // 인터럽트 플래그 정리(다른 테스트 오염 방지)
+        }
+    }
+
+    @Test
     void rejectsInvalidRetryConfiguration() {
         assertThatThrownBy(() -> new StartupCatchUp(dailyCloseService, catchUpStatus, 0, 100))
                 .isInstanceOf(IllegalArgumentException.class);

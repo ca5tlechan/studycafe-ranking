@@ -14,8 +14,13 @@ import org.springframework.stereotype.Component;
 @Component
 public class CatchUpStatus {
 
-    /** degraded 여부와 진입 시각을 함께 담는 불변 스냅샷. */
+    /** degraded 여부와 진입 시각을 함께 담는 불변 스냅샷. degraded 면 시각이 반드시 있어야 한다. */
     public record Snapshot(boolean degraded, Instant degradedSince) {
+        public Snapshot {
+            if (degraded && degradedSince == null) {
+                throw new IllegalArgumentException("degraded 스냅샷은 degradedSince 가 있어야 합니다");
+            }
+        }
     }
 
     private static final Snapshot HEALTHY = new Snapshot(false, null);

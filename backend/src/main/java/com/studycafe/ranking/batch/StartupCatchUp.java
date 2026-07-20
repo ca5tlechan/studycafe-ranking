@@ -72,7 +72,11 @@ public class StartupCatchUp {
                 }
                 log.warn("기동 catch-up 실패(attempt {}/{}), {}ms 후 재시도: {}", attempt, maxAttempts, backoff, e.toString());
                 if (!sleep(backoff)) {
-                    return; // 인터럽트 시 조용히 종료
+                    // 인터럽트로 대기가 끊기면 보정이 미완료다 — 상태를 남기지 않으면 /healthz 가 정상으로
+                    // 오인된다. degraded 로 표시하고 종료한다.
+                    catchUpStatus.markFailed();
+                    log.warn("기동 catch-up 재시도 대기 중 인터럽트되어 실패 상태로 전환");
+                    return;
                 }
                 // 포화 증가: 큰 설정값에서 backoff*2 가 long 오버플로로 음수/0 이 되면 sleep 이 즉시 반환해
                 // 바쁜 재시도 루프가 된다 — 상한에서 멈춘다.
