@@ -21,5 +21,8 @@ RUN chmod +x gradlew && ./gradlew bootJar --no-daemon -x test
 FROM eclipse-temurin:21-jre
 WORKDIR /app
 COPY --from=backend /app/build/libs/*.jar app.jar
+# 루트가 아닌 비특권 사용자로 실행(Trivy DS-0002 / Checkov CKV_DOCKER_3). app.jar 은 world-readable,
+# JVM 임시파일은 world-writable 인 /tmp 를 쓰므로 uid 만 지정하면 된다.
+USER 10001:10001
 # 512MB 컨테이너에 맞춰 힙 상한을 컨테이너 메모리 비율로 제한(기본 25%는 부하 시 빠듯).
 ENTRYPOINT ["java", "-XX:MaxRAMPercentage=60.0", "-jar", "app.jar"]

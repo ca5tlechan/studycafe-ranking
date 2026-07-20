@@ -7,6 +7,7 @@
 .github
 **/.env
 **/application-local.yml
+**/application-secret*.yml
 **/*.log
 .idea
 .vscode
