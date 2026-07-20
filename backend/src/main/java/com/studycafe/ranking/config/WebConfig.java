@@ -7,6 +7,8 @@ import org.springframework.boot.web.server.servlet.ConfigurableServletWebServerF
 import org.springframework.context.annotation.Bean;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
@@ -51,6 +53,12 @@ public class WebConfig implements WebMvcConfigurer {
             }
             // 정확히 "api" 또는 "api/..." 는 SPA 폴백 대상이 아니다(컨트롤러 처리/404 로 남긴다).
             if (requestPath.equals("api") || requestPath.startsWith("api/")) {
+                return null;
+            }
+            // 없는 정적 자산(예: /assets/x.js, /favicon.ico)까지 index.html 로 폴백하면 200+HTML 이 되어
+            // 브라우저/PWA 가 깨지고 실제 404 가 가려진다. HTML 탐색(Accept: text/html) 요청만 폴백한다.
+            String accept = request == null ? null : request.getHeader(HttpHeaders.ACCEPT);
+            if (accept == null || !accept.contains(MediaType.TEXT_HTML_VALUE)) {
                 return null;
             }
             return INDEX;
