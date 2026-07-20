@@ -18,9 +18,9 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * StartupCatchUp 의 계약: 기동 시 현재 시각으로 closeOverdue 를 위임하고, 실패해도 기동을 막지 않는다.
- * (04:00 경계 분할·다중 세션 합산·멱등·10분 필터의 실제 검증은 {@link DailyCloseServiceTest} 담당 —
- *  여기서 중복하지 않는다.)
+ * StartupCatchUp 의 계약: 기동 시 현재 시각으로 closeOverdue 를 위임하고, 성공 시 healthy·소진 시 degraded 로
+ * 상태를 남기며, 실패해도 기동을 막지 않는다. (04:00 경계 분할·멱등·10분 필터의 실제 검증은
+ * {@link DailyCloseServiceTest} 담당 — 여기서 중복하지 않는다.)
  */
 @ExtendWith(MockitoExtension.class)
 class StartupCatchUpTest {
@@ -28,37 +28,49 @@ class StartupCatchUpTest {
     @Mock
     private DailyCloseService dailyCloseService;
 
+    private final CatchUpStatus catchUpStatus = new CatchUpStatus();
+
     @Test
-    void delegatesToCloseOverdueWithCurrentInstant() {
+    void delegatesToCloseOverdueWithCurrentInstantAndStaysHealthy() {
         when(dailyCloseService.closeOverdue(any())).thenReturn(3);
-        StartupCatchUp startupCatchUp = new StartupCatchUp(dailyCloseService, 3, 0);
+        StartupCatchUp startupCatchUp = new StartupCatchUp(dailyCloseService, catchUpStatus, 3, 0);
         Instant before = Instant.now();
 
         startupCatchUp.catchUpOnStartup();
 
         ArgumentCaptor<Instant> captor = ArgumentCaptor.forClass(Instant.class);
         verify(dailyCloseService).closeOverdue(captor.capture());
-        // 기동 시각(대략 now)으로 호출한다 — 04:00 경계 계산의 기준.
         assertThat(captor.getValue())
                 .isBetween(before.minus(1, ChronoUnit.MINUTES), Instant.now().plus(1, ChronoUnit.MINUTES));
+        assertThat(catchUpStatus.isDegraded()).isFalse();
     }
 
     @Test
-    void retriesOnTransientFailureThenGivesUpWithoutThrowing() {
+    void retriesOnTransientFailureThenGivesUpWithoutThrowingAndMarksDegraded() {
         when(dailyCloseService.closeOverdue(any())).thenThrow(new RuntimeException("DB down at boot"));
-        StartupCatchUp startupCatchUp = new StartupCatchUp(dailyCloseService, 3, 0); // backoff 0 → 즉시
+        StartupCatchUp startupCatchUp = new StartupCatchUp(dailyCloseService, catchUpStatus, 3, 0); // backoff 0
 
-        // 재시도를 소진해도 기동을 막지 않는다(예외 전파 X).
+        // 재시도를 소진해도 기동을 막지 않되(예외 전파 X), 실패 상태를 노출한다.
         assertThatCode(startupCatchUp::catchUpOnStartup).doesNotThrowAnyException();
         verify(dailyCloseService, times(3)).closeOverdue(any());
+        assertThat(catchUpStatus.isDegraded()).isTrue();
+    }
+
+    @Test
+    void clearsDegradedOnceCatchUpSucceeds() {
+        catchUpStatus.markFailed(); // 앞선 실패로 degraded 라고 가정
+        when(dailyCloseService.closeOverdue(any())).thenReturn(0);
+
+        new StartupCatchUp(dailyCloseService, catchUpStatus, 3, 0).catchUpOnStartup();
+
+        assertThat(catchUpStatus.isDegraded()).isFalse();
     }
 
     @Test
     void rejectsInvalidRetryConfiguration() {
-        // 잘못된 설정으로 catch-up 이 조용히 무력화되지 않게 생성 시 거부한다.
-        assertThatThrownBy(() -> new StartupCatchUp(dailyCloseService, 0, 100))
+        assertThatThrownBy(() -> new StartupCatchUp(dailyCloseService, catchUpStatus, 0, 100))
                 .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> new StartupCatchUp(dailyCloseService, 3, -1))
+        assertThatThrownBy(() -> new StartupCatchUp(dailyCloseService, catchUpStatus, 3, -1))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 }

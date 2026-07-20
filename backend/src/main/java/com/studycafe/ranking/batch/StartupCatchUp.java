@@ -27,11 +27,13 @@ public class StartupCatchUp {
     private static final Logger log = LoggerFactory.getLogger(StartupCatchUp.class);
 
     private final DailyCloseService dailyCloseService;
+    private final CatchUpStatus catchUpStatus;
     private final int maxAttempts;
     private final long backoffMs;
 
     // 단일 생성자 — Spring 이 이걸 쓰고, 재시도 파라미터는 @Value 기본값으로. 테스트는 명시값으로 호출한다.
     public StartupCatchUp(DailyCloseService dailyCloseService,
+                          CatchUpStatus catchUpStatus,
                           @Value("${app.batch.startup-catchup.max-attempts:3}") int maxAttempts,
                           @Value("${app.batch.startup-catchup.backoff-ms:3000}") long backoffMs) {
         // 잘못된 설정으로 catch-up 이 조용히 무력화되지 않게 거부한다.
@@ -43,6 +45,7 @@ public class StartupCatchUp {
             throw new IllegalArgumentException("app.batch.startup-catchup.backoff-ms 는 음수일 수 없습니다: " + backoffMs);
         }
         this.dailyCloseService = dailyCloseService;
+        this.catchUpStatus = catchUpStatus;
         this.maxAttempts = maxAttempts;
         this.backoffMs = backoffMs;
     }
@@ -57,10 +60,13 @@ public class StartupCatchUp {
                 if (closed > 0) {
                     log.info("기동 시 밀린 자동 마감 보정: {}건", closed);
                 }
+                catchUpStatus.markHealthy(); // 정상 처리 — degraded 였다면 해제
                 return;
             } catch (RuntimeException e) {
                 if (attempt >= maxAttempts) {
-                    // 소진: 앱 기동은 막지 않고, 다음 정기 04:00 배치가 다시 시도한다(멱등).
+                    // 소진: 앱 기동은 막지 않되, 실패 상태를 노출한다(/healthz). 다음 성공한 catch-up 또는
+                    // 정기 04:00 배치가 상태를 해제한다.
+                    catchUpStatus.markFailed();
                     log.error("기동 시 자동 마감 보정 실패 — 재시도 {}회 소진, 다음 04:00 배치에 위임", maxAttempts, e);
                     return;
                 }
