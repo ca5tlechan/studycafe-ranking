@@ -65,6 +65,7 @@ export default function CheckInPage() {
   const [manual, setManual] = useState('');
   const [uncertain, setUncertain] = useState(false); // 반영 여부를 모르는 실패 → 자동 재스캔 금지
   const [reconciling, setReconciling] = useState(false); // 서버 상태 재조회 중 → 아직 결론 아님
+  const [cameraError, setCameraError] = useState(''); // 카메라 실패 원인(진단용) — getUserMedia 에러명·메시지
 
   const rejectedTokenRef = useRef<string | null>(null); // 방금 거절당한 토큰 — 자동 재요청 방지
   const scannerRef = useRef<Html5Qrcode | null>(null);
@@ -176,6 +177,7 @@ export default function CheckInPage() {
     rejectedTokenRef.current = null;
     setUncertain(false);
     setError('');
+    setCameraError('');
     setCamera('starting');
 
     const prev = scannerRef.current; // 이전(멈췄거나 실패한) 스캐너 정리
@@ -200,8 +202,15 @@ export default function CheckInPage() {
       .then(() => {
         if (scannerRef.current === scanner) setCamera('running');
       })
-      .catch(() => {
-        if (scannerRef.current === scanner) setCamera('unavailable');
+      .catch((err: unknown) => {
+        if (scannerRef.current !== scanner) return;
+        // 실제 실패 원인을 남긴다(진단용) — getUserMedia 는 NotAllowedError/NotFoundError/
+        // OverconstrainedError/NotReadableError 등 이름으로 원인을 구분해준다.
+        const name = err instanceof Error ? err.name : '';
+        const msg = err instanceof Error ? err.message : String(err);
+        console.error('[checkin] 카메라 시작 실패', err);
+        setCameraError(name ? `${name}: ${msg}` : msg);
+        setCamera('unavailable');
       });
   }, [handleScan, stopScanner]);
 
@@ -324,6 +333,12 @@ export default function CheckInPage() {
                   {window.isSecureContext
                     ? '브라우저에서 카메라 권한을 허용했는지 확인해 주세요.'
                     : 'HTTPS 연결에서만 카메라를 쓸 수 있어요.'}
+                  {cameraError && (
+                    <>
+                      <br />
+                      <span style={{ fontSize: 11, opacity: 0.7, wordBreak: 'break-word' }}>({cameraError})</span>
+                    </>
+                  )}
                   <br />
                   <button type="button" className="btn ghost" onClick={startScan}>다시 시도</button>
                 </div>
