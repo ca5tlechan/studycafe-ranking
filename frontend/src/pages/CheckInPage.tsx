@@ -195,7 +195,15 @@ export default function CheckInPage() {
     scanner
       .start(
         { facingMode: 'environment' },
-        { fps: 10, qrbox: { width: 232, height: 232 } },
+        {
+          fps: 10,
+          // 고정 px 는 화면·영상 크기와 어긋나 스캔 프레임이 밀린다. 뷰파인더(표시) 크기에
+          // 비례한 정사각 박스로 잡아 오버레이가 영상과 정렬되게 한다.
+          qrbox: (viewfinderWidth: number, viewfinderHeight: number) => {
+            const size = Math.max(160, Math.floor(Math.min(viewfinderWidth, viewfinderHeight) * 0.7));
+            return { width: size, height: size };
+          },
+        },
         (text) => void handleScan(text),
         undefined,
       )
@@ -204,12 +212,20 @@ export default function CheckInPage() {
       })
       .catch((err: unknown) => {
         if (scannerRef.current !== scanner) return;
-        // 실제 실패 원인을 남긴다(진단용) — getUserMedia 는 NotAllowedError/NotFoundError/
-        // OverconstrainedError/NotReadableError 등 이름으로 원인을 구분해준다.
-        const name = err instanceof Error ? err.name : '';
-        const msg = err instanceof Error ? err.message : String(err);
+        // 실제 실패 원인을 남긴다(진단용). getUserMedia 는 Error(NotAllowedError/NotFoundError/
+        // OverconstrainedError 등)로, html5-qrcode 는 진단 "문자열"로 reject 하기도 하므로 둘 다 보존한다.
+        const detail =
+          err instanceof Error
+            ? err.name
+              ? `${err.name}: ${err.message}`
+              : err.message
+            : typeof err === 'string'
+              ? err
+              : err != null
+                ? String(err)
+                : '';
         console.error('[checkin] 카메라 시작 실패', err);
-        setCameraError(name ? `${name}: ${msg}` : msg);
+        setCameraError(detail);
         setCamera('unavailable');
       });
   }, [handleScan, stopScanner]);

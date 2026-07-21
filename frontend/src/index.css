@@ -143,7 +143,8 @@ button { font: inherit; cursor: pointer; }
   position: relative; aspect-ratio: 1; display: grid; place-items: center;
   border-radius: var(--radius-sm); overflow: hidden; background: var(--surface-2);
 }
-.scanner > div { width: 100%; }
+/* #qr-reader 가 정사각 카드를 꽉 채워야 라이브러리가 계산하는 스캔 오버레이가 영상과 정렬된다. */
+.scanner > div { width: 100%; height: 100%; }
 /* html5-qrcode 가 주입하는 video — 카드 비율에 맞춰 채운다 */
 .scanner video { display: block; width: 100%; height: 100%; object-fit: cover; }
 .scanner-msg {
