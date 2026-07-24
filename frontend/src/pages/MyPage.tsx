@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Bar, BarChart, LabelList, ResponsiveContainer, Tooltip, XAxis } from 'recharts';
+import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis } from 'recharts';
 import {
   sessionApi,
   statsApi,
@@ -77,7 +77,7 @@ function StudyBarChart({ data, unit, height, tickFormatter }: {
 
   return (
     <ResponsiveContainer width="100%" height={height}>
-      <BarChart data={data} margin={{ top: 20, right: 2, bottom: 0, left: 2 }}>
+      <BarChart data={data} margin={{ top: 8, right: 2, bottom: 0, left: 2 }}>
         <XAxis
           dataKey="label"
           tickLine={false}
@@ -92,23 +92,14 @@ function StudyBarChart({ data, unit, height, tickFormatter }: {
         />
         {/* 진입 애니메이션은 rAF 기반이라, 프레임이 스로틀링되면 막대가 0 높이에서 멈춘 채
             "차트가 비어 보이는" 상태가 된다. 폰에서 얻는 것도 없어 끈다. */}
+        {/* 값 라벨은 막대 위에 상시 노출하지 않는다 — 탭하면 툴팁으로 뜬다(모바일 가독성). */}
         <Bar
           dataKey="seconds"
           fill="var(--primary)"
           radius={[4, 4, 0, 0]}
           maxBarSize={28}
           isAnimationActive={false}
-        >
-          {/* 모든 막대에 숫자를 붙이면 읽기 어려워진다 — 최댓값 하나만 직접 라벨. */}
-          <LabelList
-            dataKey="seconds"
-            position="top"
-            fill="var(--ink-2)"
-            fontSize={11}
-            fontWeight={700}
-            formatter={(v) => (Number(v) === max ? fmtHM(Number(v)) : '')}
-          />
-        </Bar>
+        />
       </BarChart>
     </ResponsiveContainer>
   );
