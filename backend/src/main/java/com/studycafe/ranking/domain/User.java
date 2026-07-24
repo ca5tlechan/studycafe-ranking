@@ -124,6 +124,12 @@ public class User {
         this.school = school;
     }
 
+    /** 관리자 소속 이동 — 학교와 동명이인 시퀀스(§3.3)를 새 학교 기준으로 함께 갱신한다. */
+    public void moveToSchool(School school, int nameSeq) {
+        this.school = school;
+        this.nameSeq = nameSeq;
+    }
+
     /** 경고 초기화(관리자 리셋 — 03:30 알림 미도달 구제, §3.6c). */
     public void resetWarnings() {
         this.warningCount = 0;

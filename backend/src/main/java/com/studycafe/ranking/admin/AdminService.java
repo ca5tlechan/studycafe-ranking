@@ -115,6 +115,20 @@ public class AdminService {
         getUser(userId).resetWarnings();
     }
 
+    /**
+     * 유저 소속 변경(전학 등, 관리자 전용). schoolId=null 이면 무소속. 랭킹은 현재 학교 기준이라
+     * 과거 공부기록도 새 학교 랭킹으로 함께 집계된다(별도 이관 불필요). 동명이인 시퀀스(§3.3)는
+     * 새 학교 기준으로 다시 매긴다 — 본인은 아직 새 학교 소속이 아니라 카운트에 잡히지 않는다.
+     */
+    public void changeUserSchool(Long userId, Long schoolId) {
+        User user = getUser(userId);
+        School newSchool = (schoolId == null) ? null : getSchool(schoolId);
+        int nameSeq = (newSchool == null)
+                ? userRepository.countByDisplayNameAndSchoolIsNull(user.getDisplayName()) + 1
+                : userRepository.countByDisplayNameAndSchool(user.getDisplayName(), newSchool) + 1;
+        user.moveToSchool(newSchool, nameSeq);
+    }
+
     /** 강제 체크아웃 — 열린 세션이 없으면 조용히 무시(멱등). 닫으면 집계 재계산. */
     public void forceCheckout(Long userId) {
         getUser(userId); // 존재 확인(없으면 404)

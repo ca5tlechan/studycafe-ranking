@@ -106,6 +106,33 @@ class AdminControllerMockMvcTest {
                 .andExpect(status().isBadRequest());
     }
 
+    // ----- 소속 변경 -----
+
+    @Test
+    @DisplayName("유저 소속 변경 → 학교 지정/무소속, 동명이인 시퀀스 새 학교 기준 재계산")
+    void changeUserSchool() throws Exception {
+        School school = schoolRepository.save(new School("MVC소속변경테스트고", "MVC고"));
+        // 새 학교에 이미 같은 이름 1명 → 옮겨온 유저의 nameSeq 는 2가 되어야 한다.
+        userRepository.save(new User("dup_mvc", "{noop}pw", "일반유저", 1, school));
+
+        mockMvc.perform(put("/api/admin/users/" + normal.getId() + "/school")
+                        .cookie(adminCookie).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"schoolId\":" + school.getId() + "}"))
+                .andExpect(status().isNoContent());
+
+        User moved = userRepository.findById(normal.getId()).orElseThrow();
+        org.junit.jupiter.api.Assertions.assertEquals(school.getId(), moved.getSchool().getId());
+        org.junit.jupiter.api.Assertions.assertEquals(2, moved.getNameSeq());
+
+        // schoolId=null → 무소속으로 되돌린다.
+        mockMvc.perform(put("/api/admin/users/" + normal.getId() + "/school")
+                        .cookie(adminCookie).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"schoolId\":null}"))
+                .andExpect(status().isNoContent());
+        org.junit.jupiter.api.Assertions.assertNull(
+                userRepository.findById(normal.getId()).orElseThrow().getSchool());
+    }
+
     // ----- 삭제 -----
 
     @Test

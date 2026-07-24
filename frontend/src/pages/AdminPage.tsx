@@ -71,12 +71,15 @@ function errMsg(e: unknown, fallback: string): string {
 
 function UsersTab({ meId, notify }: { meId: number; notify: (m: string) => void }) {
   const [users, setUsers] = useState<AdminUser[] | null>(null);
+  const [schools, setSchools] = useState<AdminSchool[]>([]); // 소속 변경 드롭다운용
   const [failed, setFailed] = useState(false);
 
   const load = useCallback(async () => {
     setFailed(false);
     try {
-      setUsers(await adminApi.users());
+      const [us, sc] = await Promise.all([adminApi.users(), adminApi.schools()]);
+      setUsers(us);
+      setSchools(sc);
     } catch {
       setFailed(true);
     }
@@ -122,6 +125,23 @@ function UsersTab({ meId, notify }: { meId: number; notify: (m: string) => void 
                   title={u.id === meId ? '본인은 강등할 수 없어요' : ''}
                   onClick={() => void act(() => adminApi.changeRole(u.id, 'USER'), '관리자 권한을 회수했어요')}>강등</button>
               : <button className="mini" onClick={() => void act(() => adminApi.changeRole(u.id, 'ADMIN'), '관리자로 지정했어요')}>관리자 지정</button>}
+            {/* 소속 변경(전학 등) — 과거 기록도 새 학교 랭킹으로 함께 이동. */}
+            <select
+              className="mini-select"
+              value={u.schoolId ?? ''}
+              aria-label={`${u.displayName} 소속 학교 변경`}
+              onChange={(e) => {
+                const v = e.target.value;
+                const schoolId = v === '' ? null : Number(v);
+                const label = schoolId === null ? '무소속' : schools.find((s) => s.id === schoolId)?.name ?? '학교';
+                void act(() => adminApi.changeUserSchool(u.id, schoolId), `${u.displayName}을(를) ${label}(으)로 옮겼어요`);
+              }}
+            >
+              <option value="">무소속</option>
+              {schools.map((s) => (
+                <option key={s.id} value={s.id}>{s.name}</option>
+              ))}
+            </select>
             {u.warningCount > 0 &&
               <button className="mini" onClick={() => void act(() => adminApi.resetWarnings(u.id), '경고를 초기화했어요')}>경고 리셋</button>}
             {u.checkedIn &&
