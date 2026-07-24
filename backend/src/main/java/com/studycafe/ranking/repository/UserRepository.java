@@ -19,9 +19,12 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     boolean existsByLoginId(String loginId);
 
-    int countByDisplayNameAndSchool(String displayName, School school);
+    // 동명이인 접미 seq 배정용 — 이미 쓰인 seq 목록. 삭제로 생긴 빈자리를 새 가입자가 재사용한다(§3.3).
+    @Query("select u.nameSeq from User u where u.displayName = :name and u.school = :school")
+    List<Integer> findNameSeqsByDisplayNameAndSchool(@Param("name") String name, @Param("school") School school);
 
-    int countByDisplayNameAndSchoolIsNull(String displayName);
+    @Query("select u.nameSeq from User u where u.displayName = :name and u.school is null")
+    List<Integer> findNameSeqsByDisplayNameAndSchoolIsNull(@Param("name") String name);
 
     /** school 까지 fetch join (open-in-view=false 환경에서 지연로딩 예외 방지). */
     @Query("select u from User u left join fetch u.school where u.id = :id")

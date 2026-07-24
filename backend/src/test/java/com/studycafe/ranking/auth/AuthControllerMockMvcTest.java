@@ -5,6 +5,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.hamcrest.Matchers.containsString;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import com.studycafe.ranking.domain.User;
 import com.studycafe.ranking.repository.UserRepository;
@@ -81,5 +82,29 @@ class AuthControllerMockMvcTest {
                 .andExpect(header().string(HttpHeaders.SET_COOKIE,
                         containsString(AuthCookieFactory.COOKIE_NAME + "=;")))
                 .andExpect(header().string(HttpHeaders.SET_COOKIE, containsString("Max-Age=0")));
+    }
+
+    @Test
+    @DisplayName("동명이인 seq — 삭제로 생긴 빈자리를 새 가입자가 재사용")
+    void signup_reusesFreedNameSeqSlot() throws Exception {
+        signup("dupa", "동명이"); // seq 1
+        signup("dupb", "동명이"); // seq 2
+
+        // seq 1(dupa)을 삭제해 빈자리를 만든다.
+        userRepository.delete(userRepository.findByLoginIdWithSchool("dupa").orElseThrow());
+        userRepository.flush();
+
+        // 새 가입자는 빈 seq 1을 재사용한다(개수+1 이면 2가 되어 dupb 와 충돌했을 것).
+        signup("dupc", "동명이");
+        assertEquals(1, userRepository.findByLoginIdWithSchool("dupc").orElseThrow().getNameSeq());
+        assertEquals(2, userRepository.findByLoginIdWithSchool("dupb").orElseThrow().getNameSeq());
+    }
+
+    private void signup(String loginId, String displayName) throws Exception {
+        mockMvc.perform(post("/api/auth/signup")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"loginId\":\"" + loginId + "\",\"password\":\"password123\",\"displayName\":\""
+                                + displayName + "\",\"schoolId\":null}"))
+                .andExpect(status().isCreated());
     }
 }

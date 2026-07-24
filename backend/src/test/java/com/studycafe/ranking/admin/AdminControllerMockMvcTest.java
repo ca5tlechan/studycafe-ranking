@@ -159,6 +159,27 @@ class AdminControllerMockMvcTest {
                 1, userRepository.findById(normal.getId()).orElseThrow().getNameSeq());
     }
 
+    @Test
+    @DisplayName("전학 소속 변경 — 삭제로 생긴 빈 seq 를 전학 온 동명이인이 재사용")
+    void changeUserSchool_reusesFreedSeq() throws Exception {
+        School school = schoolRepository.save(new School("MVC재사용테스트고", "재사용고"));
+        // 학교에 "동명이" seq1·seq2 존재 → seq1 삭제로 빈자리 발생
+        User first = userRepository.saveAndFlush(new User("dseqa", "{noop}pw", "동명이", 1, school));
+        userRepository.saveAndFlush(new User("dseqb", "{noop}pw", "동명이", 2, school));
+        userRepository.delete(first);
+        userRepository.flush();
+        // 무소속의 동명이인을 이 학교로 전학 → 빈 seq 1 재사용(개수+1 이면 2 로 seqb 와 충돌했을 것)
+        User mover = userRepository.saveAndFlush(new User("dseqc", "{noop}pw", "동명이", 1, null));
+
+        mockMvc.perform(put("/api/admin/users/" + mover.getId() + "/school")
+                        .cookie(adminCookie).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"schoolId\":" + school.getId() + "}"))
+                .andExpect(status().isNoContent());
+
+        org.junit.jupiter.api.Assertions.assertEquals(
+                1, userRepository.findById(mover.getId()).orElseThrow().getNameSeq());
+    }
+
     // ----- 삭제 -----
 
     @Test

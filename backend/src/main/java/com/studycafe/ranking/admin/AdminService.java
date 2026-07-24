@@ -26,6 +26,7 @@ import com.studycafe.ranking.repository.UserRepository;
 import com.studycafe.ranking.studyrecord.StudyRecordService;
 import com.studycafe.ranking.studytime.StudyClock;
 import com.studycafe.ranking.studytime.StudyTimePolicy;
+import com.studycafe.ranking.user.NameSeqAllocator;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
@@ -130,9 +131,10 @@ public class AdminService {
             return; // 같은 소속 재선택 → 변경 없음(seq 부풀림 방지)
         }
         School newSchool = (schoolId == null) ? null : getSchool(schoolId);
+        // 새 소속에서 안 쓰인 가장 작은 seq(삭제로 생긴 빈자리 재사용). 본인은 아직 새 소속이 아니라 안 잡힌다.
         int nameSeq = (newSchool == null)
-                ? userRepository.countByDisplayNameAndSchoolIsNull(user.getDisplayName()) + 1
-                : userRepository.countByDisplayNameAndSchool(user.getDisplayName(), newSchool) + 1;
+                ? NameSeqAllocator.smallestUnused(userRepository.findNameSeqsByDisplayNameAndSchoolIsNull(user.getDisplayName()))
+                : NameSeqAllocator.smallestUnused(userRepository.findNameSeqsByDisplayNameAndSchool(user.getDisplayName(), newSchool));
         user.moveToSchool(newSchool, nameSeq);
     }
 
