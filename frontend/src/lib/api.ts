@@ -199,6 +199,9 @@ export const authApi = {
   logout: () => request<void>('/auth/logout', { method: 'POST' }),
   me: () => request<User>('/users/me'),
   schools: () => request<School[]>('/schools'),
+  /** 본인 소속(학교) 변경. schoolId=null 이면 무소속. */
+  changeMySchool: (schoolId: number | null) =>
+    request<void>('/users/me/school', { method: 'PUT', body: JSON.stringify({ schoolId }) }),
 };
 
 export const sessionApi = {
