@@ -295,4 +295,5 @@ export const pushApi = {
     request<void>('/push/subscribe', { method: 'POST', body: JSON.stringify(sub) }),
   unsubscribe: (endpoint: string) =>
     request<void>('/push/unsubscribe', { method: 'POST', body: JSON.stringify({ endpoint }) }),
+  test: () => request<{ sent: number }>('/push/test', { method: 'POST' }),
 };

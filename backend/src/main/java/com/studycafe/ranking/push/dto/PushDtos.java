@@ -30,4 +30,8 @@ public final class PushDtos {
     /** 프론트가 구독 전 받는 응답. enabled=false 면 토글을 숨긴다. */
     public record VapidKeyResponse(boolean enabled, String publicKey) {
     }
+
+    /** 테스트 발송 결과. sent = 발송을 시도한 이 계정의 구독 수(0이면 이 기기에 저장된 구독이 없음). */
+    public record TestPushResponse(int sent) {
+    }
 }

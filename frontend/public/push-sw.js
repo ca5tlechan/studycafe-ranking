@@ -15,7 +15,8 @@ self.addEventListener('push', (event) => {
     // 같은 태그로 덮어써서 03:30 알림이 여러 개 쌓이지 않게 한다.
     tag: 'pre-close',
     renotify: true,
-    // 아이콘은 PWA 아이콘 등록(§manifest) 후 여기 지정. 지금은 브라우저 기본 사용.
+    icon: '/pwa-192.png', // 알림 아이콘(시상대+별)
+    badge: '/pwa-192.png', // 안드로이드 상태바 배지
   };
   event.waitUntil(self.registration.showNotification(title, options));
 });
