@@ -17,12 +17,16 @@ export default defineConfig({
         name: '스터디카페 랭킹',
         short_name: '스카랭킹',
         description: '스터디카페 공부 시간 기록 & 랭킹',
-        theme_color: '#1e293b',
+        theme_color: '#1c4fa2',
         background_color: '#ffffff',
         display: 'standalone',
         start_url: '/',
-        // 아이콘(192/512)은 이후 실제 이미지를 public/ 에 넣고 여기 등록 (PWA 설치 조건)
-        icons: [],
+        // 시상대+별 앱 아이콘. any(정사각) + maskable(안드로이드 원형 마스크용 여백 포함).
+        icons: [
+          { src: '/pwa-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+          { src: '/pwa-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+          { src: '/pwa-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+        ],
       },
     }),
   ],
