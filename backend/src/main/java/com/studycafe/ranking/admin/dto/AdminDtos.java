@@ -27,6 +27,10 @@ public final class AdminDtos {
     public record RoleUpdateRequest(@NotNull Role role) {
     }
 
+    /** 유저 소속 변경 요청. schoolId=null 이면 무소속으로 이동. */
+    public record UserSchoolRequest(Long schoolId) {
+    }
+
     public record SchoolRequest(@NotBlank String name, String shortName) {
     }
 

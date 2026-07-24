@@ -262,6 +262,8 @@ export const adminApi = {
     request<void>(`/admin/users/${id}/warnings/reset`, { method: 'POST' }),
   forceCheckout: (id: number) =>
     request<void>(`/admin/users/${id}/force-checkout`, { method: 'POST' }),
+  changeUserSchool: (id: number, schoolId: number | null) =>
+    request<void>(`/admin/users/${id}/school`, { method: 'PUT', body: JSON.stringify({ schoolId }) }),
   // 학교
   schools: () => request<AdminSchool[]>('/admin/schools'),
   createSchool: (name: string, shortName: string | null) =>

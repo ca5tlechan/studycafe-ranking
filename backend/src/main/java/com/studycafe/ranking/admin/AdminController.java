@@ -6,6 +6,7 @@ import com.studycafe.ranking.admin.dto.AdminDtos.BatchResult;
 import com.studycafe.ranking.admin.dto.AdminDtos.CafeQr;
 import com.studycafe.ranking.admin.dto.AdminDtos.RoleUpdateRequest;
 import com.studycafe.ranking.admin.dto.AdminDtos.SchoolRequest;
+import com.studycafe.ranking.admin.dto.AdminDtos.UserSchoolRequest;
 import jakarta.validation.Valid;
 import java.util.List;
 import org.springframework.http.HttpStatus;
@@ -56,6 +57,13 @@ public class AdminController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void resetWarnings(@PathVariable Long id) {
         adminService.resetWarnings(id);
+    }
+
+    /** 유저 소속 변경(전학 등). body.schoolId=null 이면 무소속. */
+    @PutMapping("/users/{id}/school")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void changeUserSchool(@PathVariable Long id, @RequestBody UserSchoolRequest req) {
+        adminService.changeUserSchool(id, req.schoolId());
     }
 
     @PostMapping("/users/{id}/force-checkout")

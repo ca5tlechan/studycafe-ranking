@@ -106,6 +106,59 @@ class AdminControllerMockMvcTest {
                 .andExpect(status().isBadRequest());
     }
 
+    // ----- 소속 변경 -----
+
+    @Test
+    @DisplayName("유저 소속 변경 → 학교 지정/무소속, 동명이인 시퀀스 새 학교 기준 재계산")
+    void changeUserSchool() throws Exception {
+        School school = schoolRepository.save(new School("MVC소속변경테스트고", "MVC고"));
+        // 새 학교에 이미 같은 이름 1명 → 옮겨온 유저의 nameSeq 는 2가 되어야 한다.
+        userRepository.save(new User("dup_mvc", "{noop}pw", "일반유저", 1, school));
+
+        mockMvc.perform(put("/api/admin/users/" + normal.getId() + "/school")
+                        .cookie(adminCookie).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"schoolId\":" + school.getId() + "}"))
+                .andExpect(status().isNoContent());
+
+        User moved = userRepository.findById(normal.getId()).orElseThrow();
+        org.junit.jupiter.api.Assertions.assertEquals(school.getId(), moved.getSchool().getId());
+        org.junit.jupiter.api.Assertions.assertEquals(2, moved.getNameSeq());
+
+        // schoolId=null → 무소속으로 되돌린다.
+        mockMvc.perform(put("/api/admin/users/" + normal.getId() + "/school")
+                        .cookie(adminCookie).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"schoolId\":null}"))
+                .andExpect(status().isNoContent());
+        org.junit.jupiter.api.Assertions.assertNull(
+                userRepository.findById(normal.getId()).orElseThrow().getSchool());
+    }
+
+    @Test
+    @DisplayName("소속 변경 PUT — 무인증 401, 일반 403, 관리자 204")
+    void changeUserSchool_authorization() throws Exception {
+        School school = schoolRepository.save(new School("MVC권한테스트고", "권한고"));
+        String body = "{\"schoolId\":" + school.getId() + "}";
+        String url = "/api/admin/users/" + normal.getId() + "/school";
+        mockMvc.perform(put(url).contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isUnauthorized());
+        mockMvc.perform(put(url).cookie(userCookie).contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(put(url).cookie(adminCookie).contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isNoContent());
+    }
+
+    @Test
+    @DisplayName("같은 소속 재선택 → no-op (단독 사용자 seq 안 부풀림)")
+    void changeUserSchool_sameSchoolIsNoop() throws Exception {
+        // normal 은 무소속(seq 1). 무소속으로 다시 지정해도 seq 는 1 그대로여야 한다.
+        mockMvc.perform(put("/api/admin/users/" + normal.getId() + "/school")
+                        .cookie(adminCookie).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"schoolId\":null}"))
+                .andExpect(status().isNoContent());
+        org.junit.jupiter.api.Assertions.assertEquals(
+                1, userRepository.findById(normal.getId()).orElseThrow().getNameSeq());
+    }
+
     // ----- 삭제 -----
 
     @Test

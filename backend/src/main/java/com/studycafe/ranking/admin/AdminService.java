@@ -30,6 +30,7 @@ import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -113,6 +114,26 @@ public class AdminService {
 
     public void resetWarnings(Long userId) {
         getUser(userId).resetWarnings();
+    }
+
+    /**
+     * 유저 소속 변경(전학 등, 관리자 전용). schoolId=null 이면 무소속. 랭킹은 현재 학교 기준이라
+     * 과거 공부기록도 새 학교 랭킹으로 함께 집계된다(별도 이관 불필요). 동명이인 시퀀스(§3.3)는
+     * 새 학교 기준으로 다시 매긴다 — 이동 시 본인은 아직 새 학교 소속이 아니라 카운트에 안 잡힌다.
+     * <p>같은 소속 재선택은 no-op — 안 그러면 본인이 대상 카운트에 잡혀 단독 사용자도 seq 가 1→2 로
+     * 부풀어 오른다. 떠난 학교의 남은 동명이인 재번호화(빈자리 당기기)는 하지 않는다(정책상 재정렬 없음).
+     */
+    public void changeUserSchool(Long userId, Long schoolId) {
+        User user = getUser(userId);
+        Long currentSchoolId = user.getSchool() != null ? user.getSchool().getId() : null;
+        if (Objects.equals(currentSchoolId, schoolId)) {
+            return; // 같은 소속 재선택 → 변경 없음(seq 부풀림 방지)
+        }
+        School newSchool = (schoolId == null) ? null : getSchool(schoolId);
+        int nameSeq = (newSchool == null)
+                ? userRepository.countByDisplayNameAndSchoolIsNull(user.getDisplayName()) + 1
+                : userRepository.countByDisplayNameAndSchool(user.getDisplayName(), newSchool) + 1;
+        user.moveToSchool(newSchool, nameSeq);
     }
 
     /** 강제 체크아웃 — 열린 세션이 없으면 조용히 무시(멱등). 닫으면 집계 재계산. */
