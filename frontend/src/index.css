@@ -140,13 +140,14 @@ button { font: inherit; cursor: pointer; }
 .state-line, .result-line { font-size: 15px; color: var(--ink-2); }
 .scan-hint { font-size: 13.5px; color: var(--muted); }
 .scanner {
-  position: relative; aspect-ratio: 1; display: grid; place-items: center;
+  position: relative; display: grid; place-items: center;
   border-radius: var(--radius-sm); overflow: hidden; background: var(--surface-2);
+  min-height: 260px; /* idle/starting 오버레이용 최소 높이 — 영상 로드되면 영상 높이로 늘어난다 */
 }
-/* #qr-reader 가 정사각 카드를 꽉 채워야 라이브러리가 계산하는 스캔 오버레이가 영상과 정렬된다. */
-.scanner > div { width: 100%; height: 100%; }
-/* html5-qrcode 가 주입하는 video — 카드 비율에 맞춰 채운다 */
-.scanner video { display: block; width: 100%; height: 100%; object-fit: cover; }
+.scanner > div { width: 100%; line-height: 0; }
+/* html5-qrcode 는 video 와 스캔 프레임 오버레이를 "원본 비율" 기준으로 함께 배치한다. object-fit/height 를
+   강제하면 영상이 세로로 잘리며 오버레이만 어긋난다 → 폭만 맞추고 높이는 비율대로 둔다(인라인 스타일 override). */
+.scanner video { display: block; width: 100% !important; height: auto !important; }
 .scanner-msg {
   position: absolute; inset: 0; display: grid; place-items: center;
   padding: 20px; text-align: center; font-size: 13px; line-height: 1.6; color: var(--muted);
