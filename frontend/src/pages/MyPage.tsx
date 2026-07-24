@@ -86,7 +86,9 @@ function StudyBarChart({ data, unit, height, tickFormatter }: {
           tickFormatter={tickFormatter}
           tick={{ fill: 'var(--muted)', fontSize: 11 }}
         />
+        {/* 값 라벨을 없앤 대신 값은 툴팁으로 본다. 기본 hover 는 폰에 없으므로 탭(click)으로 뜨게 한다. */}
         <Tooltip
+          trigger="click"
           cursor={{ fill: 'var(--surface-2)' }}
           content={<ChartTooltip unit={unit} />}
         />
