@@ -139,7 +139,7 @@ function UsersTab({ meId, notify }: { meId: number; notify: (m: string) => void 
         </select>
       </div>
       {visibleUsers.length === 0 ? (
-        <div className="center-msg">{query ? '검색 결과가 없어요.' : '사용자가 없어요.'}</div>
+        <div className="center-msg">{query.trim() ? '검색 결과가 없어요.' : '사용자가 없어요.'}</div>
       ) : (
         <div className="admin-list">
           {visibleUsers.map((u) => (
