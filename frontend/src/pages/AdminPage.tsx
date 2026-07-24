@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../lib/auth';
 import {
@@ -69,10 +69,14 @@ function errMsg(e: unknown, fallback: string): string {
 
 // ---------- 사용자 ----------
 
+type UserSort = 'name' | 'school' | 'warnings';
+
 function UsersTab({ meId, notify }: { meId: number; notify: (m: string) => void }) {
   const [users, setUsers] = useState<AdminUser[] | null>(null);
   const [schools, setSchools] = useState<AdminSchool[]>([]); // 소속 변경 드롭다운용
   const [failed, setFailed] = useState(false);
+  const [query, setQuery] = useState(''); // 이름/아이디 검색
+  const [sort, setSort] = useState<UserSort>('name');
 
   const load = useCallback(async () => {
     setFailed(false);
@@ -97,6 +101,23 @@ function UsersTab({ meId, notify }: { meId: number; notify: (m: string) => void 
     }
   };
 
+  // 검색(이름·아이디) + 정렬. 파일럿 규모라 클라이언트에서 처리한다.
+  const visibleUsers = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    const filtered = (users ?? []).filter(
+      (u) => !q || u.displayName.toLowerCase().includes(q) || u.loginId.toLowerCase().includes(q),
+    );
+    const byName = (a: AdminUser, b: AdminUser) => a.displayName.localeCompare(b.displayName, 'ko');
+    return [...filtered].sort((a, b) => {
+      if (sort === 'warnings') return b.warningCount - a.warningCount || byName(a, b);
+      if (sort === 'school') {
+        // 무소속은 뒤로(￿), 같은 학교면 이름순.
+        return (a.schoolName ?? '￿').localeCompare(b.schoolName ?? '￿', 'ko') || byName(a, b);
+      }
+      return byName(a, b);
+    });
+  }, [users, query, sort]);
+
   if (failed) {
     return <div className="card stack">
       <div className="state-line">사용자를 불러오지 못했어요.</div>
@@ -106,8 +127,22 @@ function UsersTab({ meId, notify }: { meId: number; notify: (m: string) => void 
   if (!users) return <div className="center-msg">불러오는 중…</div>;
 
   return (
-    <div className="admin-list">
-      {users.map((u) => (
+    <>
+      <div className="admin-toolbar">
+        <input className="input admin-search" placeholder="이름·아이디 검색"
+          value={query} onChange={(e) => setQuery(e.target.value)} aria-label="사용자 검색" />
+        <select className="mini-select" value={sort}
+          onChange={(e) => setSort(e.target.value as UserSort)} aria-label="정렬 기준">
+          <option value="name">이름순</option>
+          <option value="school">학교순</option>
+          <option value="warnings">경고순</option>
+        </select>
+      </div>
+      {visibleUsers.length === 0 ? (
+        <div className="center-msg">{query.trim() ? '검색 결과가 없어요.' : '사용자가 없어요.'}</div>
+      ) : (
+        <div className="admin-list">
+          {visibleUsers.map((u) => (
         <div key={u.id} className="admin-row">
           <div className="admin-row-main">
             <div className="admin-name">
@@ -156,8 +191,10 @@ function UsersTab({ meId, notify }: { meId: number; notify: (m: string) => void 
               }}>삭제</button>
           </div>
         </div>
-      ))}
-    </div>
+          ))}
+        </div>
+      )}
+    </>
   );
 }
 
