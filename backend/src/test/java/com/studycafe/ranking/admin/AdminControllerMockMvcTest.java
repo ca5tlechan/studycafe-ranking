@@ -133,6 +133,32 @@ class AdminControllerMockMvcTest {
                 userRepository.findById(normal.getId()).orElseThrow().getSchool());
     }
 
+    @Test
+    @DisplayName("소속 변경 PUT — 무인증 401, 일반 403, 관리자 204")
+    void changeUserSchool_authorization() throws Exception {
+        School school = schoolRepository.save(new School("MVC권한테스트고", "권한고"));
+        String body = "{\"schoolId\":" + school.getId() + "}";
+        String url = "/api/admin/users/" + normal.getId() + "/school";
+        mockMvc.perform(put(url).contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isUnauthorized());
+        mockMvc.perform(put(url).cookie(userCookie).contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(put(url).cookie(adminCookie).contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isNoContent());
+    }
+
+    @Test
+    @DisplayName("같은 소속 재선택 → no-op (단독 사용자 seq 안 부풀림)")
+    void changeUserSchool_sameSchoolIsNoop() throws Exception {
+        // normal 은 무소속(seq 1). 무소속으로 다시 지정해도 seq 는 1 그대로여야 한다.
+        mockMvc.perform(put("/api/admin/users/" + normal.getId() + "/school")
+                        .cookie(adminCookie).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"schoolId\":null}"))
+                .andExpect(status().isNoContent());
+        org.junit.jupiter.api.Assertions.assertEquals(
+                1, userRepository.findById(normal.getId()).orElseThrow().getNameSeq());
+    }
+
     // ----- 삭제 -----
 
     @Test

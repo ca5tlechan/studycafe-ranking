@@ -76,13 +76,14 @@ function UsersTab({ meId, notify }: { meId: number; notify: (m: string) => void 
 
   const load = useCallback(async () => {
     setFailed(false);
-    try {
-      const [us, sc] = await Promise.all([adminApi.users(), adminApi.schools()]);
-      setUsers(us);
-      setSchools(sc);
-    } catch {
+    // 독립 로드 — 학교 목록만 실패해도 사용자 관리는 계속 되게 한다(소속 드롭다운만 무소속으로 축소).
+    const [us, sc] = await Promise.allSettled([adminApi.users(), adminApi.schools()]);
+    if (us.status !== 'fulfilled') {
       setFailed(true);
+      return;
     }
+    setUsers(us.value);
+    setSchools(sc.status === 'fulfilled' ? sc.value : []);
   }, []);
   useEffect(() => { void load(); }, [load]);
 
