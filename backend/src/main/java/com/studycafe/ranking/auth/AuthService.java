@@ -10,6 +10,8 @@ import com.studycafe.ranking.domain.School;
 import com.studycafe.ranking.domain.User;
 import com.studycafe.ranking.repository.SchoolRepository;
 import com.studycafe.ranking.repository.UserRepository;
+import com.studycafe.ranking.user.NameSeqAllocator;
+import java.util.List;
 import com.studycafe.ranking.user.dto.UserResponse;
 import java.util.Locale;
 import org.hibernate.exception.ConstraintViolationException;
@@ -87,12 +89,12 @@ public class AuthService {
                 .orElseThrow(() -> new SchoolNotFoundException(schoolId));
     }
 
-    /** 같은 (displayName, school) 조합의 기존 인원 + 1. 무소속(null)도 같은 규칙. §3.3 */
+    /** 같은 (displayName, school) 조합에서 안 쓰인 가장 작은 seq(삭제로 생긴 빈자리 재사용). 무소속도 동일. §3.3 */
     private int nextNameSeq(String displayName, School school) {
-        int existing = (school == null)
-                ? userRepository.countByDisplayNameAndSchoolIsNull(displayName)
-                : userRepository.countByDisplayNameAndSchool(displayName, school);
-        return existing + 1;
+        List<Integer> used = (school == null)
+                ? userRepository.findNameSeqsByDisplayNameAndSchoolIsNull(displayName)
+                : userRepository.findNameSeqsByDisplayNameAndSchool(displayName, school);
+        return NameSeqAllocator.smallestUnused(used);
     }
 
     /**
