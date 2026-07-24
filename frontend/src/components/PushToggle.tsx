@@ -12,6 +12,8 @@ export default function PushToggle() {
   const [state, setState] = useState<State>('loading');
   const [publicKey, setPublicKey] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [testing, setTesting] = useState(false);
+  const [testMsg, setTestMsg] = useState(''); // 테스트 발송 결과 안내
 
   useEffect(() => {
     let alive = true;
@@ -52,6 +54,7 @@ export default function PushToggle() {
       if (state === 'on') {
         await disablePush();
         setState('off');
+        setTestMsg('');
       } else {
         const ok = await enablePush(publicKey);
         // 권한을 거부하면 브라우저가 더는 프롬프트를 띄우지 않는다 — 상태로 안내를 바꾼다.
@@ -63,6 +66,24 @@ export default function PushToggle() {
       setState(sub ? 'on' : 'off');
     } finally {
       setBusy(false);
+    }
+  };
+
+  const sendTest = async () => {
+    if (testing) return;
+    setTesting(true);
+    setTestMsg('보내는 중…');
+    try {
+      const { sent } = await pushApi.test();
+      setTestMsg(
+        sent > 0
+          ? '테스트 알림을 보냈어요. 잠시 뒤 도착해요. (아이폰은 홈 화면에 추가한 앱에서만 와요)'
+          : '이 기기에 구독 정보가 없어요. 알림을 껐다 다시 켜 주세요.',
+      );
+    } catch {
+      setTestMsg('전송에 실패했어요. 잠시 뒤 다시 시도해 주세요.');
+    } finally {
+      setTesting(false);
     }
   };
 
@@ -78,11 +99,23 @@ export default function PushToggle() {
           </p>
         </div>
         {state !== 'denied' && (
-          <button className="btn sm ghost" disabled={busy} onClick={() => void toggle()}>
-            {busy ? '…' : state === 'on' ? '끄기' : '켜기'}
-          </button>
+          <div className="push-actions">
+            {state === 'on' && (
+              <button className="btn sm ghost" disabled={busy || testing} onClick={() => void sendTest()}>
+                {testing ? '…' : '테스트'}
+              </button>
+            )}
+            <button className="btn sm ghost" disabled={busy} onClick={() => void toggle()}>
+              {busy ? '…' : state === 'on' ? '끄기' : '켜기'}
+            </button>
+          </div>
         )}
       </div>
+      {testMsg && (
+        <p className="chart-sub push-desc" role="status">
+          {testMsg}
+        </p>
+      )}
     </section>
   );
 }

@@ -171,6 +171,7 @@ button { font: inherit; cursor: pointer; }
 .push-card { margin-bottom: 12px; }
 .push-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .push-row .btn.sm { flex-shrink: 0; }
+.push-actions { display: flex; gap: 8px; flex-shrink: 0; }
 .push-desc { margin: 4px 0 0; }
 .stat-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .stat { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 16px; }
