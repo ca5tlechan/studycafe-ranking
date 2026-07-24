@@ -34,10 +34,14 @@ class NameMaskerTest {
     }
 
     @Test
-    @DisplayName("rankingLabel: 동명이인 접미 숫자(name_seq>1)")
+    @DisplayName("rankingLabel: 동명이인 접미 알파벳(seq 2→B, 3→C, 첫 사람은 미표기)")
     void rankingLabel_nameSeqSuffix() {
-        User u = new User("id", "hash", "김민현", 2, new School("ㅁㅁ중학교", "ㅁㅁ중"));
-        assertEquals("김O현(ㅁㅁ중)2", NameMasker.rankingLabel(u));
+        School s = new School("ㅁㅁ중학교", "ㅁㅁ중");
+        assertEquals("김O현(ㅁㅁ중)", NameMasker.rankingLabel(new User("id", "hash", "김민현", 1, s)));
+        assertEquals("김O현(ㅁㅁ중)B", NameMasker.rankingLabel(new User("id", "hash", "김민현", 2, s)));
+        assertEquals("김O현(ㅁㅁ중)C", NameMasker.rankingLabel(new User("id", "hash", "김민현", 3, s)));
+        // 26명 초과는 엑셀 열처럼 확장(27→AA).
+        assertEquals("김O현(ㅁㅁ중)AA", NameMasker.rankingLabel(new User("id", "hash", "김민현", 27, s)));
     }
 
     @Test
