@@ -69,7 +69,9 @@ function describeCameraError(err: unknown): string {
     const message = typeof o.message === 'string' ? o.message : '';
     if (name || message) return name && message ? `${name}: ${message}` : name || message;
     try {
-      return JSON.stringify(err);
+      // toJSON()이 undefined 를 돌려주는 객체는 stringify 가 undefined → : string 계약 유지 위해 fallback.
+      const serialized = JSON.stringify(err);
+      return serialized ?? String(err);
     } catch {
       return String(err); // 순환 참조 등 — 최후 fallback
     }
