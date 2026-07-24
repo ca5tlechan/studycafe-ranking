@@ -12,7 +12,6 @@ import {
 } from '../lib/api';
 import { CAFE_FALLBACK, fmtHM, fmtTime, studyTodayISO } from '../lib/format';
 import { useAuth } from '../lib/auth';
-import PushToggle from '../components/PushToggle';
 
 const WEEKDAY_KO: Record<Weekday, string> = {
   MONDAY: '월',
@@ -245,8 +244,8 @@ export default function MyPage() {
             )}
           </div>
         )}
-        {/* 03:30 마감 알림 토글(§3.6b). 지원/활성 안 되면 스스로 숨는다 — 로딩/에러와 독립. */}
-        <PushToggle />
+        {/* 03:30 마감 알림(§3.6b)은 파일럿에서 숨김 — iOS Web Push 미도달 + 새벽 사용률 낮음.
+            되살리려면 여기 <PushToggle /> 복구 + application.yml pre-close-cron 복원. */}
         {loading ? (
           <div className="center-msg">불러오는 중…</div>
         ) : allFailed ? (
