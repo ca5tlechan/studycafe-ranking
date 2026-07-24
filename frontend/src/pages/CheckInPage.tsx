@@ -55,6 +55,30 @@ function messageFor(err: unknown): string {
   return '기록에 실패했어요. 다시 시도해 주세요.';
 }
 
+/**
+ * 카메라 실패 원인을 사람이 읽을 수 있는 진단 문자열로. getUserMedia 는 Error 로, html5-qrcode 는
+ * 문자열이나 {name,message} 객체로 reject 하기도 한다. Error·문자열·객체·기타를 모두 보존한다.
+ */
+function describeCameraError(err: unknown): string {
+  if (err instanceof Error) return err.name ? `${err.name}: ${err.message}` : err.message;
+  if (typeof err === 'string') return err;
+  if (err == null) return '';
+  if (typeof err === 'object') {
+    const o = err as { name?: unknown; message?: unknown };
+    const name = typeof o.name === 'string' ? o.name : '';
+    const message = typeof o.message === 'string' ? o.message : '';
+    if (name || message) return name && message ? `${name}: ${message}` : name || message;
+    try {
+      // toJSON()이 undefined 를 돌려주는 객체는 stringify 가 undefined → : string 계약 유지 위해 fallback.
+      const serialized = JSON.stringify(err);
+      return serialized ?? String(err);
+    } catch {
+      return String(err); // 순환 참조 등 — 최후 fallback
+    }
+  }
+  return String(err);
+}
+
 export default function CheckInPage() {
   const [camera, setCamera] = useState<CameraState>('idle');
   const [current, setCurrent] = useState<CurrentSession | null>(null);
@@ -65,6 +89,7 @@ export default function CheckInPage() {
   const [manual, setManual] = useState('');
   const [uncertain, setUncertain] = useState(false); // 반영 여부를 모르는 실패 → 자동 재스캔 금지
   const [reconciling, setReconciling] = useState(false); // 서버 상태 재조회 중 → 아직 결론 아님
+  const [cameraError, setCameraError] = useState(''); // 카메라 실패 원인(진단용) — getUserMedia 에러명·메시지
 
   const rejectedTokenRef = useRef<string | null>(null); // 방금 거절당한 토큰 — 자동 재요청 방지
   const scannerRef = useRef<Html5Qrcode | null>(null);
@@ -176,6 +201,7 @@ export default function CheckInPage() {
     rejectedTokenRef.current = null;
     setUncertain(false);
     setError('');
+    setCameraError('');
     setCamera('starting');
 
     const prev = scannerRef.current; // 이전(멈췄거나 실패한) 스캐너 정리
@@ -193,15 +219,29 @@ export default function CheckInPage() {
     scanner
       .start(
         { facingMode: 'environment' },
-        { fps: 10, qrbox: { width: 232, height: 232 } },
+        {
+          fps: 10,
+          // 고정 px 는 화면·영상 크기와 어긋나 스캔 프레임이 밀린다. 뷰파인더(표시) 크기에
+          // 비례한 정사각 박스로 잡아 오버레이가 영상과 정렬되게 한다.
+          qrbox: (viewfinderWidth: number, viewfinderHeight: number) => {
+            const minDim = Math.min(viewfinderWidth, viewfinderHeight);
+            // 160px 하한은 두되, 뷰파인더보다 커져 오버레이가 잘리지 않도록 minDim 으로 상한을 건다.
+            const size = Math.min(minDim, Math.max(160, Math.floor(minDim * 0.7)));
+            return { width: size, height: size };
+          },
+        },
         (text) => void handleScan(text),
         undefined,
       )
       .then(() => {
         if (scannerRef.current === scanner) setCamera('running');
       })
-      .catch(() => {
-        if (scannerRef.current === scanner) setCamera('unavailable');
+      .catch((err: unknown) => {
+        if (scannerRef.current !== scanner) return;
+        // 실제 실패 원인을 남긴다(진단용) — Error·문자열·객체 payload 를 모두 보존한다.
+        console.error('[checkin] 카메라 시작 실패', err);
+        setCameraError(describeCameraError(err));
+        setCamera('unavailable');
       });
   }, [handleScan, stopScanner]);
 
@@ -324,6 +364,12 @@ export default function CheckInPage() {
                   {window.isSecureContext
                     ? '브라우저에서 카메라 권한을 허용했는지 확인해 주세요.'
                     : 'HTTPS 연결에서만 카메라를 쓸 수 있어요.'}
+                  {cameraError && (
+                    <>
+                      <br />
+                      <span style={{ fontSize: 11, opacity: 0.7, wordBreak: 'break-word' }}>({cameraError})</span>
+                    </>
+                  )}
                   <br />
                   <button type="button" className="btn ghost" onClick={startScan}>다시 시도</button>
                 </div>
