@@ -37,7 +37,8 @@ app:
       public-key: ${VAPID_PUBLIC_KEY:}
       private-key: ${VAPID_PRIVATE_KEY:}
       subject: ${VAPID_SUBJECT:mailto:admin@studycafe.app}   # RFC 8292 연락처(mailto:/https:), 비밀 아님
-    # 03:30 사전 알림 배치 cron(§9.4, 03:00~03:30 조정 가능). KST 기준.
-    pre-close-cron: ${PRE_CLOSE_NOTIFY_CRON:0 30 3 * * *}
+    # 03:30 사전 알림 배치 — 파일럿에선 비활성("-" = @Scheduled 미등록). iOS Web Push 미도달로 알림 UI 를
+    # 숨긴 상태와 짝. 되살리려면 "0 30 3 * * *" 로 되돌리고 MyPage 의 <PushToggle /> 을 복구한다. KST 기준.
+    pre-close-cron: ${PRE_CLOSE_NOTIFY_CRON:-}
 
 # 실제 시크릿(JWT 등)은 여기 리터럴로 넣지 말 것. 환경변수(${...}) 또는 .env / application-local.yml(gitignore됨)로 주입.
