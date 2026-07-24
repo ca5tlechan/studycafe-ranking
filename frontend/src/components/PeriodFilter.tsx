@@ -44,7 +44,12 @@ export default function PeriodFilter({ value, onChange }: {
         onClick={() => setOpen((v) => !v)}
       >
         {current.label}
-        <span className={`caret${open ? ' up' : ''}`} aria-hidden="true">⌄</span>
+        <span className={`caret${open ? ' up' : ''}`} aria-hidden="true">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               strokeWidth="2.75" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M6 9l6 6 6-6" />
+          </svg>
+        </span>
       </button>
       {open && (
         <div className="period-opts">
