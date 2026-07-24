@@ -26,12 +26,11 @@ import com.studycafe.ranking.repository.UserRepository;
 import com.studycafe.ranking.studyrecord.StudyRecordService;
 import com.studycafe.ranking.studytime.StudyClock;
 import com.studycafe.ranking.studytime.StudyTimePolicy;
-import com.studycafe.ranking.user.NameSeqAllocator;
+import com.studycafe.ranking.user.UserService;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -52,6 +51,7 @@ public class AdminService {
     private final PushSubscriptionRepository pushSubscriptionRepository;
     private final StudyRecordService studyRecordService;
     private final DailyCloseService dailyCloseService;
+    private final UserService userService;
 
     public AdminService(UserRepository userRepository,
                         SchoolRepository schoolRepository,
@@ -60,7 +60,8 @@ public class AdminService {
                         DailyStudyRecordRepository recordRepository,
                         PushSubscriptionRepository pushSubscriptionRepository,
                         StudyRecordService studyRecordService,
-                        DailyCloseService dailyCloseService) {
+                        DailyCloseService dailyCloseService,
+                        UserService userService) {
         this.userRepository = userRepository;
         this.schoolRepository = schoolRepository;
         this.cafeRepository = cafeRepository;
@@ -69,6 +70,7 @@ public class AdminService {
         this.pushSubscriptionRepository = pushSubscriptionRepository;
         this.studyRecordService = studyRecordService;
         this.dailyCloseService = dailyCloseService;
+        this.userService = userService;
     }
 
     // ---------- 사용자 ----------
@@ -118,24 +120,11 @@ public class AdminService {
     }
 
     /**
-     * 유저 소속 변경(전학 등, 관리자 전용). schoolId=null 이면 무소속. 랭킹은 현재 학교 기준이라
-     * 과거 공부기록도 새 학교 랭킹으로 함께 집계된다(별도 이관 불필요). 동명이인 시퀀스(§3.3)는
-     * 새 학교 기준으로 다시 매긴다 — 이동 시 본인은 아직 새 학교 소속이 아니라 카운트에 안 잡힌다.
-     * <p>같은 소속 재선택은 no-op — 안 그러면 본인이 대상 카운트에 잡혀 단독 사용자도 seq 가 1→2 로
-     * 부풀어 오른다. 떠난 학교의 남은 동명이인 재번호화(빈자리 당기기)는 하지 않는다(정책상 재정렬 없음).
+     * 유저 소속 변경(전학 등, 관리자). 로직은 {@link UserService#changeSchool} — 유저 본인 변경과 공유한다
+     * (schoolId=null 무소속, 과거 기록 새 학교 집계, 동명이인 seq 빈자리 재사용, 같은 소속 no-op).
      */
     public void changeUserSchool(Long userId, Long schoolId) {
-        User user = getUser(userId);
-        Long currentSchoolId = user.getSchool() != null ? user.getSchool().getId() : null;
-        if (Objects.equals(currentSchoolId, schoolId)) {
-            return; // 같은 소속 재선택 → 변경 없음(seq 부풀림 방지)
-        }
-        School newSchool = (schoolId == null) ? null : getSchool(schoolId);
-        // 새 소속에서 안 쓰인 가장 작은 seq(삭제로 생긴 빈자리 재사용). 본인은 아직 새 소속이 아니라 안 잡힌다.
-        int nameSeq = (newSchool == null)
-                ? NameSeqAllocator.smallestUnused(userRepository.findNameSeqsByDisplayNameAndSchoolIsNull(user.getDisplayName()))
-                : NameSeqAllocator.smallestUnused(userRepository.findNameSeqsByDisplayNameAndSchool(user.getDisplayName(), newSchool));
-        user.moveToSchool(newSchool, nameSeq);
+        userService.changeSchool(userId, schoolId);
     }
 
     /** 강제 체크아웃 — 열린 세션이 없으면 조용히 무시(멱등). 닫으면 집계 재계산. */

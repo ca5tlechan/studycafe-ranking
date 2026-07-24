@@ -15,6 +15,7 @@ interface AuthContextValue {
   signup: (input: SignupInput) => Promise<void>;
   logout: () => Promise<void>;
   retry: () => void;
+  refresh: () => Promise<void>; // 현재 사용자 정보 재조회(예: 소속 변경 후)
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -120,9 +121,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return p;
   };
 
+  // 로그인 상태에서 최신 사용자 정보만 다시 받는다(소속 변경 등). ready/loadError 는 건드리지 않는다.
+  const refresh = useCallback(async () => {
+    setUser(await authApi.me());
+  }, []);
+
   return (
     <AuthContext.Provider
-      value={{ user, ready, loadError, login, signup, logout, retry: () => void bootstrap() }}
+      value={{ user, ready, loadError, login, signup, logout, retry: () => void bootstrap(), refresh }}
     >
       {children}
     </AuthContext.Provider>

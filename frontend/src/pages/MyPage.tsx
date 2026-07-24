@@ -12,6 +12,7 @@ import {
 } from '../lib/api';
 import { CAFE_FALLBACK, fmtHM, fmtTime, studyTodayISO } from '../lib/format';
 import { useAuth } from '../lib/auth';
+import MySchoolCard from '../components/MySchoolCard';
 
 const WEEKDAY_KO: Record<Weekday, string> = {
   MONDAY: '월',
@@ -246,6 +247,7 @@ export default function MyPage() {
         )}
         {/* 03:30 마감 알림(§3.6b)은 파일럿에서 숨김 — iOS Web Push 미도달 + 새벽 사용률 낮음.
             되살리려면 여기 <PushToggle /> 복구 + application.yml pre-close-cron 복원. */}
+        <MySchoolCard />
         {loading ? (
           <div className="center-msg">불러오는 중…</div>
         ) : allFailed ? (
