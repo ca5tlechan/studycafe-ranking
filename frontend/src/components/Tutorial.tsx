@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 
 const SEEN_KEY = 'scr_tutorial_seen';
 
@@ -54,24 +54,79 @@ const STEPS: { icon: ReactNode; title: string; desc: string }[] = [
 export default function Tutorial() {
   const [visible, setVisible] = useState(() => safeGet(SEEN_KEY) !== '1');
   const [step, setStep] = useState(0);
+  const cardRef = useRef<HTMLDivElement>(null);
+
+  const close = useCallback(() => {
+    safeSet(SEEN_KEY, '1');
+    setVisible(false);
+  }, []);
+
+  // 접근성: 열릴 때 모달로 포커스 이동, Tab 을 카드 안에 가두고, 닫으면 이전 포커스 복원.
+  useEffect(() => {
+    if (!visible) return;
+    const card = cardRef.current;
+    const prevActive = document.activeElement as HTMLElement | null;
+    card?.focus(); // 다이얼로그 진입점(aria-labelledby/describedby 가 함께 읽힘)
+
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        close();
+        return;
+      }
+      if (e.key !== 'Tab') return;
+      // 단계에 따라 '이전' 버튼이 생겼다 사라지므로 매번 현재 DOM 을 다시 조회한다.
+      const f = card ? Array.from(card.querySelectorAll<HTMLElement>('button')) : [];
+      if (f.length === 0) {
+        e.preventDefault();
+        return;
+      }
+      const first = f[0];
+      const lastEl = f[f.length - 1];
+      const active = document.activeElement as HTMLElement | null;
+      if (!active || !f.includes(active)) {
+        e.preventDefault();
+        (e.shiftKey ? lastEl : first).focus();
+      } else if (e.shiftKey && active === first) {
+        e.preventDefault();
+        lastEl.focus();
+      } else if (!e.shiftKey && active === lastEl) {
+        e.preventDefault();
+        first.focus();
+      }
+    };
+
+    card?.addEventListener('keydown', onKey);
+    return () => {
+      card?.removeEventListener('keydown', onKey);
+      prevActive?.focus?.(); // 닫힐 때 원래 있던 컨트롤로 포커스 복원
+    };
+  }, [visible, close]);
 
   if (!visible) return null;
 
   const last = step === STEPS.length - 1;
-  const close = () => {
-    safeSet(SEEN_KEY, '1');
-    setVisible(false);
-  };
   const next = () => (last ? close() : setStep((s) => s + 1));
   const cur = STEPS[step];
 
   return (
-    <div className="tut-overlay" role="dialog" aria-modal="true" aria-label="앱 사용 안내">
-      <div className="tut-card">
+    <div className="tut-overlay">
+      <div
+        className="tut-card"
+        ref={cardRef}
+        tabIndex={-1}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="tut-title"
+        aria-describedby="tut-desc"
+      >
         <button type="button" className="tut-skip" onClick={close}>건너뛰기</button>
         <div className="tut-icon">{cur.icon}</div>
-        <h3 className="tut-title">{cur.title}</h3>
-        <p className="tut-desc">{cur.desc}</p>
+        {/* 단계 전환 시 포커스를 옮기지 않고 라이브 영역으로 새 제목·설명을 알린다. */}
+        <div aria-live="polite">
+          <h3 className="tut-title" id="tut-title">{cur.title}</h3>
+          <p className="tut-desc" id="tut-desc">{cur.desc}</p>
+        </div>
         <div className="tut-dots">
           {STEPS.map((_, i) => <span key={i} className={`tut-dot${i === step ? ' on' : ''}`} />)}
         </div>

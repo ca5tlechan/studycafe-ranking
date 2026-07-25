@@ -133,8 +133,13 @@ button { font: inherit; cursor: pointer; }
 }
 .tut-card {
   position: relative; width: 100%; max-width: 340px;
+  /* 짧은 화면·가로모드·확대 시 카드가 뷰포트를 넘어 '시작하기'가 잘리지 않게 */
+  max-height: calc(100vh - 48px);
+  max-height: calc(100dvh - 48px);
+  overflow-y: auto;
   background: var(--surface); border-radius: 22px; padding: 30px 24px 22px;
   text-align: center; box-shadow: var(--shadow);
+  outline: none; /* 프로그램 포커스(포커스 트랩 진입점)로 링 안 뜨게 */
 }
 .tut-skip {
   position: absolute; top: 12px; right: 14px;
