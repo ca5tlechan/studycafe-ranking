@@ -125,6 +125,35 @@ button { font: inherit; cursor: pointer; }
 .install-ill-t { fill: var(--ink-2); }
 .install-ill-h { fill: var(--primary-ink); font-weight: 700; }
 
+/* ===== 첫 실행 튜토리얼 ===== */
+.tut-overlay {
+  position: fixed; inset: 0; z-index: 60;
+  background: rgba(10, 16, 28, .55);
+  display: flex; align-items: center; justify-content: center; padding: 24px;
+}
+.tut-card {
+  position: relative; width: 100%; max-width: 340px;
+  background: var(--surface); border-radius: 22px; padding: 30px 24px 22px;
+  text-align: center; box-shadow: var(--shadow);
+}
+.tut-skip {
+  position: absolute; top: 12px; right: 14px;
+  border: none; background: none; color: var(--muted); font-size: 13px; font-weight: 600;
+}
+.tut-icon {
+  width: 60px; height: 60px; margin: 4px auto 18px;
+  display: grid; place-items: center; border-radius: 17px;
+  background: var(--primary-soft); color: var(--primary-ink);
+}
+.tut-icon svg { width: 30px; height: 30px; }
+.tut-title { font-size: 19px; font-weight: 730; letter-spacing: -.02em; margin-bottom: 9px; }
+.tut-desc { font-size: 14px; color: var(--muted); line-height: 1.6; min-height: 67px; }
+.tut-dots { display: flex; gap: 6px; justify-content: center; margin: 18px 0 20px; }
+.tut-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--line); transition: width .15s, background .15s; }
+.tut-dot.on { width: 20px; border-radius: 4px; background: var(--primary); }
+.tut-actions { display: flex; gap: 10px; }
+.tut-actions .btn { flex: 1; } /* 이전/다음 균등폭 — 좁아져 글자가 세로로 접히지 않게 */
+
 /* ===== Auth 화면 ===== */
 .auth { display: flex; flex-direction: column; min-height: 100dvh; padding: 40px 26px 32px; justify-content: center; }
 .auth .brand { display: flex; align-items: center; gap: 11px; margin-bottom: 8px; }

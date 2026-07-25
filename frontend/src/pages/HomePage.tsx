@@ -4,6 +4,7 @@ import { useAuth } from '../lib/auth';
 import { sessionApi, type CurrentSession } from '../lib/api';
 import { CAFE_FALLBACK, fmtTime } from '../lib/format';
 import InstallPrompt from '../components/InstallPrompt';
+import Tutorial from '../components/Tutorial';
 
 
 const QrIcon = (
@@ -36,6 +37,7 @@ export default function HomePage() {
 
   return (
     <>
+      <Tutorial />
       <header className="topbar">
         <div>
           <div className="hi">안녕하세요,</div>
