@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../lib/auth';
 import { sessionApi, type CurrentSession } from '../lib/api';
 import { CAFE_FALLBACK, fmtTime } from '../lib/format';
+import InstallPrompt from '../components/InstallPrompt';
 
 
 const QrIcon = (
@@ -49,6 +50,7 @@ export default function HomePage() {
       </header>
 
       <div className="app-body">
+        <InstallPrompt />
         {loading ? (
           <div className="center-msg">불러오는 중…</div>
         ) : failed ? (

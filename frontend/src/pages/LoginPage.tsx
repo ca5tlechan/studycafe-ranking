@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../lib/auth';
 import { ApiError } from '../lib/api';
+import InstallPrompt from '../components/InstallPrompt';
 
 const Logo = (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round"><path d="M12 7v5l3 2" /><circle cx="12" cy="12" r="8" /></svg>
@@ -31,6 +32,7 @@ export default function LoginPage() {
 
   return (
     <div className="auth">
+      <InstallPrompt />
       <div className="brand">
         <span className="logo">{Logo}</span>
         <b>스터디카페 랭킹</b>
