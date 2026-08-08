@@ -68,7 +68,9 @@ export default function HomePage() {
             <span className="pill studying"><span className="dot live" />공부 중</span>
             <div className="state-line">
               <b>{session.cafeName ?? CAFE_FALLBACK}</b>에서 공부하고 있어요
-              {session.checkInAt && <> · <span className="num">{fmtTime(session.checkInAt)}</span> 시작</>}
+              {session.checkInAt && (
+                <span className="state-sub"><span className="num">{fmtTime(session.checkInAt)}</span> 시작</span>
+              )}
             </div>
             <Link className="btn full" to="/checkin">{QrIcon}QR 체크아웃</Link>
           </div>
