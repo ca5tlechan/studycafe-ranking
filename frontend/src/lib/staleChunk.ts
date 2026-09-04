@@ -20,7 +20,9 @@ export function reloadForStaleChunk(): void {
     if (Date.now() - last < GUARD_MS) return; // 방금 리로드했는데 또 실패 → 멈춘다(에러 화면으로 폴백)
     sessionStorage.setItem(RELOAD_KEY, String(Date.now()));
   } catch {
-    /* 저장 불가(프라이빗 모드 등) — 가드 없이 진행 */
+    /* 저장소 차단(프라이빗 모드 등)이면 가드를 보장할 수 없다 → 자동 새로고침을 건너뛰고
+       에러 폴백(RouteError)의 수동 새로고침 버튼에 맡긴다. 무한 새로고침 루프 방지. */
+    return;
   }
   window.location.reload();
 }
