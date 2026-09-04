@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Html5Qrcode, Html5QrcodeScannerState, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import { ApiError, sessionApi, type CurrentSession, type SessionToggle } from '../lib/api';
 import { CAFE_FALLBACK, fmtTime } from '../lib/format';
+import { useAuth } from '../lib/auth';
 
 const SCANNER_ID = 'qr-reader';
 
@@ -80,6 +81,7 @@ function describeCameraError(err: unknown): string {
 }
 
 export default function CheckInPage() {
+  const { user } = useAuth();
   const [camera, setCamera] = useState<CameraState>('idle');
   const [current, setCurrent] = useState<CurrentSession | null>(null);
   const [statusFailed, setStatusFailed] = useState(false);
@@ -384,6 +386,7 @@ export default function CheckInPage() {
         <p className="notice">
           하루는 <b>새벽 4시</b>에 마감돼요. 계속 공부하려면 04:00 이후 다시 체크인해 주세요.
           체크아웃 없이 04:00을 넘기면 자동 종료되고 경고가 쌓여요.
+          경고 <b>{user?.penaltyThreshold ?? 3}회</b>면 이번 달 랭킹에서 제외돼요.
         </p>
 
         {/* §2 [예외] 개발 빌드 한정 수동 입력 — 프로덕션 빌드에서는 이 분기가 통째로 제거된다.

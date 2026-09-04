@@ -217,6 +217,8 @@ button { font: inherit; cursor: pointer; }
   background: var(--gold-soft); color: var(--gold-ink);
 }
 .warn-banner.penalized { background: color-mix(in srgb, var(--danger) 13%, transparent); color: var(--danger); }
+/* 경고 0회: 규칙 안내용 중립 톤(경고색 아님) */
+.warn-banner.clean { background: var(--surface-2); color: var(--muted); }
 .warn-banner b { font-weight: 800; }
 .now-line { display: flex; align-items: center; gap: 10px; font-size: 13.5px; color: var(--ink-2); }
 /* 03:30 마감 알림 토글(§3.6b) */
