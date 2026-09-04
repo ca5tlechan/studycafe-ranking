@@ -350,6 +350,16 @@ button { font: inherit; cursor: pointer; }
 .spinner { width: 22px; height: 22px; border: 2.5px solid var(--line); border-top-color: var(--primary); border-radius: 50%; animation: spin .7s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 .loading-screen { min-height: 100dvh; display: grid; place-items: center; }
+/* 라우트 에러 폴백(낡은 청크 자동 새로고침 안내 등) */
+.error-screen {
+  min-height: 100dvh; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 12px; padding: 32px 24px; text-align: center;
+}
+.error-screen .error-icon { font-size: 40px; }
+.error-screen h2 { font-size: 18px; font-weight: 730; color: var(--ink); }
+.error-screen p { font-size: 14px; color: var(--muted); line-height: 1.6; max-width: 300px; }
+.error-screen .btn { margin-top: 6px; padding: 12px 22px; border: none; border-radius: 14px;
+  font-size: 15px; font-weight: 650; background: var(--primary); color: var(--on-primary); }
 .soon { color: var(--muted); font-size: 13px; margin-top: 6px; }
 @media (prefers-reduced-motion: reduce) { .dot.live, .spinner { animation: none; } }
 
