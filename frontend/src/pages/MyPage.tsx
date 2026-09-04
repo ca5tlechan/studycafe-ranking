@@ -227,23 +227,31 @@ export default function MyPage() {
       </header>
 
       <div className="app-body">
-        {/* §3.6c — 04:00 자동 마감 경고/페널티 안내. 로딩·에러와 무관하게 항상 상단에 노출. */}
-        {user && user.warningCount > 0 && (
-          <div className={`warn-banner${user.penalized ? ' penalized' : ''}`} role="status">
-            {user.penalized ? (
-              <>
-                <b>경고 {user.warningCount}회</b> — 자동 마감이 반복돼 이번 기간 랭킹에서 제외됐어요.
-                {/* 경고는 스터디-월(04:00 기준) 단위로 리셋된다 — 1일 00:00~03:59 는 아직 전월이므로
-                    "매달 1일"이 아니라 "매달 1일 새벽 4시"가 실제 경계다(§3.6c). */}
-                매달 1일 새벽 4시에 초기화돼요.
-              </>
-            ) : (
-              <>
-                <b>경고 {user.warningCount}/{user.penaltyThreshold}</b> — 04:00 전에 체크아웃하거나
-                이후 다시 체크인하면 경고가 쌓이지 않아요.
-              </>
-            )}
-          </div>
+        {/* §3.6c — 04:00 자동 마감 경고/페널티 안내. 로딩·에러와 무관하게 항상 상단에 노출.
+            경고가 0회여도 규칙(임계·결과)을 미리 알 수 있게 'clean' 상태를 은은하게 상시 표시한다. */}
+        {user && (
+          user.warningCount > 0 ? (
+            <div className={`warn-banner${user.penalized ? ' penalized' : ''}`} role="status">
+              {user.penalized ? (
+                <>
+                  <b>경고 {user.warningCount}회</b> — 자동 마감이 반복돼 이번 달 랭킹에서 제외됐어요.
+                  {/* 경고는 스터디-월(04:00 기준) 단위로 리셋된다 — 1일 00:00~03:59 는 아직 전월이므로
+                      "매달 1일"이 아니라 "매달 1일 새벽 4시"가 실제 경계다(§3.6c). */}
+                  매달 1일 새벽 4시에 초기화돼요.
+                </>
+              ) : (
+                <>
+                  <b>경고 {user.warningCount}/{user.penaltyThreshold}</b> — 04:00 전에 체크아웃하거나
+                  이후 다시 체크인하면 경고가 쌓이지 않아요. {user.penaltyThreshold}회면 이번 달 랭킹에서 제외돼요.
+                </>
+              )}
+            </div>
+          ) : (
+            <div className="warn-banner clean" role="status">
+              <b>경고 0/{user.penaltyThreshold}</b> — 04:00 전 체크아웃을 잊으면 경고 1회,
+              {' '}{user.penaltyThreshold}회 쌓이면 이번 달 랭킹에서 제외돼요.
+            </div>
+          )
         )}
         {/* 03:30 마감 알림(§3.6b)은 파일럿에서 숨김 — iOS Web Push 미도달 + 새벽 사용률 낮음.
             되살리려면 여기 <PushToggle /> 복구 + application.yml pre-close-cron 복원. */}
