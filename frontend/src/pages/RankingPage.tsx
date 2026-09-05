@@ -35,28 +35,34 @@ function SchoolPodium({ entries }: { entries: SchoolEntry[] }) {
 }
 
 function SchoolBoard({ data }: { data: SchoolRanking }) {
-  if (!data.podium.length && !data.list.length) {
-    return <p className="chart-empty">이 기간에 조건을 채운 학교가 아직 없어요.</p>;
-  }
+  const empty = !data.podium.length && !data.list.length;
   return (
     <>
-      <SchoolPodium entries={data.podium} />
-      {data.list.length > 0 && (
-        <ul className="rank-list">
-          {data.list.map((e) => (
-            <li key={e.rank} className="rank-row">
-              <span className="rank-n num">{e.rank}</span>
-              <span className="rank-name">
-                {e.schoolName}
-                <span className="rank-sub num">{e.memberCount}명</span>
-              </span>
-              <span className="rank-time num">평균 {fmtHM(e.avgSeconds)}</span>
-            </li>
-          ))}
-        </ul>
+      {empty ? (
+        <p className="chart-empty">아직 순위에 오른 학교가 없어요.</p>
+      ) : (
+        <>
+          <SchoolPodium entries={data.podium} />
+          {data.list.length > 0 && (
+            <ul className="rank-list">
+              {data.list.map((e) => (
+                <li key={e.rank} className="rank-row">
+                  <span className="rank-n num">{e.rank}</span>
+                  <span className="rank-name">
+                    {e.schoolName}
+                    <span className="rank-sub num">{e.memberCount}명</span>
+                  </span>
+                  <span className="rank-time num">평균 {fmtHM(e.avgSeconds)}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </>
       )}
-      {/* §3.4 — 최소 인원 미달 학교가 왜 안 보이는지 알려준다. */}
-      <p className="chart-sub board-note">활동 인원 5명 이상인 학교만 순위에 올라요.</p>
+      {/* §3.4 — 최소 인원 규칙. 순위가 있든 비었든 항상 안내해 "우리 학교는 왜 없지?"에 답한다. */}
+      <p className="chart-sub board-note">
+        활동 인원 5명 이상인 학교부터 순위에 올라요. 우리 학교가 안 보이면 아직 인원이 모이는 중이에요.
+      </p>
     </>
   );
 }
@@ -148,6 +154,13 @@ export default function RankingPage() {
             school && <SchoolBoard data={school} />
           )}
         </section>
+        {/* §3.6e — 랭킹 캡 안내. 마이(실제 시간)와 값이 다를 수 있음을 넌지시 알린다. 숫자는 노출하지 않는다. */}
+        {!failed && !loading && fresh && (
+          <p className="rank-cap-note">
+            공정한 랭킹을 위해 비정상적으로 긴 기록은<br />
+            순위 집계에서 제한될 수 있어요.
+          </p>
+        )}
       </div>
     </>
   );
