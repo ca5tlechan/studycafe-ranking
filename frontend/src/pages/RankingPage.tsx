@@ -59,10 +59,6 @@ function SchoolBoard({ data }: { data: SchoolRanking }) {
           )}
         </>
       )}
-      {/* §3.4 — 최소 인원 규칙. 순위가 있든 비었든 항상 안내해 "우리 학교는 왜 없지?"에 답한다. */}
-      <p className="chart-sub board-note">
-        활동 인원 5명 이상인 학교부터 순위에 올라요. 우리 학교가 안 보이면 아직 인원이 모이는 중이에요.
-      </p>
     </>
   );
 }
@@ -154,12 +150,22 @@ export default function RankingPage() {
             school && <SchoolBoard data={school} />
           )}
         </section>
-        {/* §3.6e — 랭킹 캡 안내. 마이(실제 시간)와 값이 다를 수 있음을 넌지시 알린다. 숫자는 노출하지 않는다. */}
+        {/* 규칙 안내를 카드 밖에 모아 둔다 — 캡(§3.6e)은 공통, 최소인원(§3.4)은 학교별 탭만. 숫자는 노출 안 함. */}
         {!failed && !loading && fresh && (
-          <p className="rank-cap-note">
-            공정한 랭킹을 위해 비정상적으로 긴 기록은<br />
-            순위 집계에서 제한될 수 있어요.
-          </p>
+          <div className="rank-notes">
+            <p className="rank-note">
+              공정한 랭킹을 위해 비정상적으로 긴 기록은<br />
+              순위 집계에서 제한될 수 있어요.
+            </p>
+            {tab === 'school' && (
+              <>
+                <div className="rank-note-sep" aria-hidden="true">·</div>
+                <p className="rank-note wrap">
+                  활동 인원 5명 이상인 학교부터 순위에 올라요. 우리 학교가 안 보이면 아직 인원이 모이는 중이에요.
+                </p>
+              </>
+            )}
+          </div>
         )}
       </div>
     </>
