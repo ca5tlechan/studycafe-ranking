@@ -330,7 +330,12 @@ button { font: inherit; cursor: pointer; }
 .my-rank-lbl { font-size: 12px; font-weight: 700; color: var(--muted); }
 .my-rank-v { flex: 1; font-size: 14px; color: var(--ink); }
 .my-rank-hint { margin-left: 7px; font-size: 11px; color: var(--muted); font-weight: 600; }
-.board-note { margin: 14px 0 0; }
+.board-note { margin: 14px 0 0; word-break: keep-all; text-wrap: balance; } /* 한글 단어 단위 줄바꿈 + 줄 균형 */
+/* 랭킹 캡 안내(카드 밖, 가운데). 줄바꿈은 JSX <br> 로 고정하므로 balance 는 쓰지 않는다. */
+.rank-cap-note {
+  margin: 12px 4px 0; text-align: center;
+  font-size: 12px; color: var(--muted); line-height: 1.5; word-break: keep-all;
+}
 
 .chart-sub { font-size: 12.5px; color: var(--muted); margin: 6px 0 10px; }
 .chart-empty { font-size: 13px; color: var(--muted); padding: 28px 0; text-align: center; }
