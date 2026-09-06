@@ -20,6 +20,12 @@ export default function RankPreview() {
 
   useEffect(() => {
     let alive = true;
+    // 재조회(소속 변경 등으로 effect 재실행) 시작 시 이전 상태를 초기화한다 —
+    // 안 그러면 지난 실패가 남아 카드가 계속 숨거나, 새 응답 전까지 옛 학교 순위가 보인다.
+    setFailed(false);
+    setSchoolFailed(false);
+    setMine(undefined);
+    setSchool(undefined);
     rankingApi
       .individual('this_week')
       .then((d) => alive && setMine(d.myRank))
