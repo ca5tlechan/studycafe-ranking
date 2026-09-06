@@ -16,6 +16,7 @@ export default function RankPreview() {
   const [mine, setMine] = useState<Loadable<RankEntry>>(undefined);
   const [school, setSchool] = useState<Loadable<SchoolEntry>>(undefined);
   const [failed, setFailed] = useState(false);
+  const [schoolFailed, setSchoolFailed] = useState(false); // 학교 로드 실패 — '순위 없음'과 구분
 
   useEffect(() => {
     let alive = true;
@@ -31,7 +32,7 @@ export default function RankPreview() {
           // 학교별 보드(상위권)에서 우리 학교를 찾는다. 없으면(순위권 밖·최소인원 미달) null.
           setSchool([...d.podium, ...d.list].find((e) => e.schoolName === user!.schoolName) ?? null);
         })
-        .catch(() => alive && setSchool(null)); // 학교 로드 실패는 개인 순위만 보여주고 넘어간다
+        .catch(() => alive && setSchoolFailed(true)); // 로드 실패는 '순위 없음'과 구분해 그 줄을 숨긴다
     }
     return () => {
       alive = false;
@@ -58,7 +59,7 @@ export default function RankPreview() {
           <span className="rank-preview-go" aria-hidden="true">›</span>
         </span>
       </Link>
-      {hasSchool && (
+      {hasSchool && !schoolFailed && (
         <Link to="/ranking?tab=school" className="rank-row2">
           <span className="rank-row2-lbl">우리 학교</span>
           <span className="rank-row2-v">
