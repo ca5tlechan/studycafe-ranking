@@ -79,6 +79,22 @@ button { font: inherit; cursor: pointer; }
 .card.sub { background: var(--surface-2); border-color: transparent; }
 .lbl { font-size: 10.5px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
 
+/* ===== 홈 위젯 (이번 주 랭킹 미리보기 · 오늘의 한마디) ===== */
+.rank-card { padding: 4px 6px; }
+.rank-card-head { font-size: 11.5px; font-weight: 700; color: var(--primary-ink); padding: 8px 10px 4px; }
+.rank-row2 { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 11px 10px; border-radius: 13px; color: inherit; }
+.rank-row2 + .rank-row2 { border-top: 1px solid var(--line-2); }
+.rank-row2:active { background: var(--surface-2); }
+.rank-row2-lbl { flex: 0 0 auto; font-size: 13px; font-weight: 700; color: var(--muted); }
+.rank-row2-v { display: inline-flex; align-items: center; gap: 6px; font-size: 15px; color: var(--ink); }
+.rank-row2-v b { font-weight: 800; color: var(--primary-ink); }
+.rank-preview-dim { color: var(--muted); font-size: 13.5px; }
+.rank-preview-go { font-size: 22px; line-height: 1; color: var(--muted); }
+.quote-head { font-size: 11.5px; font-weight: 700; color: var(--primary-ink); }
+.quote-text { font-size: 15.5px; font-weight: 600; color: var(--ink); line-height: 1.6; margin-top: 8px; word-break: keep-all; text-wrap: balance; }
+.quote-text .quote-q { color: var(--primary); font-weight: 800; } /* 여닫이 따옴표 강조 */
+.quote-author { font-size: 12.5px; color: var(--muted); margin-top: 10px; text-align: right; }
+
 /* ===== 버튼 ===== */
 .btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 8px;

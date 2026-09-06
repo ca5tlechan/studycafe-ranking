@@ -5,6 +5,8 @@ import { sessionApi, type CurrentSession } from '../lib/api';
 import { CAFE_FALLBACK, fmtTime } from '../lib/format';
 import InstallPrompt from '../components/InstallPrompt';
 import Tutorial from '../components/Tutorial';
+import RankPreview from '../components/RankPreview';
+import DailyQuote from '../components/DailyQuote';
 
 
 const QrIcon = (
@@ -81,6 +83,10 @@ export default function HomePage() {
             <Link className="btn full" to="/checkin">{QrIcon}QR 체크인</Link>
           </div>
         )}
+
+        {/* 홈 하단 여백 채우기 — 이번 주 내 순위 미리보기 + 오늘의 명언 */}
+        <RankPreview />
+        <DailyQuote />
       </div>
     </>
   );

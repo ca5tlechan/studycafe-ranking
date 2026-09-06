@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import PeriodFilter from '../components/PeriodFilter';
 import RankingBoard from '../components/RankingBoard';
 import {
@@ -68,7 +69,9 @@ function SchoolBoard({ data }: { data: SchoolRanking }) {
 }
 
 export default function RankingPage() {
-  const [tab, setTab] = useState<Tab>('individual');
+  const [searchParams] = useSearchParams();
+  // 홈의 '우리 학교' 미리보기가 ?tab=school 로 진입하면 학교별 탭을 먼저 연다.
+  const [tab, setTab] = useState<Tab>(searchParams.get('tab') === 'school' ? 'school' : 'individual');
   const [period, setPeriod] = useState<RankingPeriod>('this_week');
   const [individual, setIndividual] = useState<IndividualRanking | null>(null);
   const [school, setSchool] = useState<SchoolRanking | null>(null);
